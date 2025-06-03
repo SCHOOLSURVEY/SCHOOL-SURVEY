@@ -10,99 +10,65 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { validateAdminCode } from "@/lib/admin-setup"
+import { createUser, loginUser } from "@/lib/auth-flow"
 import { useRouter } from "next/navigation"
-import { Info } from "lucide-react"
+import { Info, Key, Mail, Phone } from "lucide-react"
 
 export function LoginForm() {
-  const [loginData, setLoginData] = useState({ email: "" })
+  const [loginData, setLoginData] = useState({
+    email: "",
+    adminCode: "",
+    loginType: "regular", // "regular" or "admin"
+  })
   const [signupData, setSignupData] = useState({
     email: "",
     full_name: "",
     role: "",
     class_number: "",
-    admin_code: "",
+    parent_email: "",
+    parent_phone: "",
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const router = useRouter()
 
-  const generateUniqueId = (role: string) => {
-    const prefix = role === "teacher" ? "T" : role === "student" ? "S" : "A"
-    const timestamp = Date.now().toString().slice(-6)
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")
-    return `${prefix}${timestamp}${random}`
+  const handleAdminLogin = async (adminCode: string) => {
+    const validation = await validateAdminCode(adminCode)
+    if (!validation.valid) {
+      setMessage(validation.message ?? "Invalid admin code")
+      return false
+    }
+
+    // Set user in localStorage and redirect
+    localStorage.setItem("currentUser", JSON.stringify(validation.admin))
+    router.push("/admin")
+    return true
   }
 
-  const validateAdminCode = async (code: string) => {
-    try {
-      // First check if the code matches any of our known valid codes
-      const validCodes = ["SCHOOL2024", "PRINCIPAL2024", "SETUP2024"]
-      if (!validCodes.includes(code)) {
-        return { valid: false, message: "Invalid admin code. Please use: SCHOOL2024, PRINCIPAL2024, or SETUP2024" }
-      }
+  const handleRegularLogin = async (email: string) => {
+    const result = await loginUser(email)
 
-      // Try to validate against database
-      const { data: adminCode, error } = await supabase
-        .from("admin_codes")
-        .select("*")
-        .eq("code", code)
-        .eq("is_active", true)
-        .single()
-
-      if (error) {
-        // If database validation fails, allow the hardcoded codes for now
-        console.warn("Database validation failed, using fallback validation:", error)
-        return { valid: true, adminCodeId: null }
-      }
-
-      if (!adminCode) {
-        return { valid: false, message: "Invalid admin code. Please contact school administration." }
-      }
-
-      // Check if code has expired
-      const now = new Date()
-      const expiresAt = new Date(adminCode.expires_at)
-      if (expiresAt < now) {
-        return { valid: false, message: "This admin code has expired. Please request a new one." }
-      }
-
-      // Check if code has reached max uses
-      if (adminCode.current_uses >= adminCode.max_uses) {
-        return { valid: false, message: "This admin code has reached its maximum usage limit." }
-      }
-
-      return { valid: true, adminCodeId: adminCode.id }
-    } catch (error) {
-      console.error("Error validating admin code:", error)
-      // Fallback to hardcoded validation
-      const validCodes = ["SCHOOL2024", "PRINCIPAL2024", "SETUP2024"]
-      if (validCodes.includes(code)) {
-        return { valid: true, adminCodeId: null }
-      }
-      return { valid: false, message: "Error validating admin code. Please try again." }
+    if (!result.success) {
+      setMessage(result.message ?? "Login failed")
+      return false
     }
-  }
 
-  const recordAdminCodeUsage = async (adminCodeId: string, userId: string) => {
-    try {
-      // Record the usage
-      await supabase.from("admin_code_usage").insert([
-        {
-          admin_code_id: adminCodeId,
-          user_id: userId,
-          ip_address: null, // Could be populated with actual IP
-          user_agent: navigator.userAgent,
-        },
-      ])
+    // Set user in localStorage and redirect
+    localStorage.setItem("currentUser", JSON.stringify(result.user))
 
-      // Increment usage count
-      await supabase.rpc("increment_admin_code_usage", { code_id: adminCodeId })
-    } catch (error) {
-      console.error("Error recording admin code usage:", error)
+    switch (result.user.role) {
+      case "teacher":
+        router.push("/teacher")
+        break
+      case "student":
+        router.push("/student")
+        break
+      default:
+        setMessage("Invalid user role.")
+        return false
     }
+    return true
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -111,30 +77,10 @@ export function LoginForm() {
     setMessage("")
 
     try {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", loginData.email)
-        .single()
-
-      if (userError || !userData) {
-        setMessage("User not found. Please sign up or contact administration.")
-        setLoading(false)
-        return
-      }
-
-      localStorage.setItem("currentUser", JSON.stringify(userData))
-
-      switch (userData.role) {
-        case "admin":
-          router.push("/admin")
-          break
-        case "teacher":
-          router.push("/teacher")
-          break
-        case "student":
-          router.push("/student")
-          break
+      if (loginData.loginType === "admin") {
+        await handleAdminLogin(loginData.adminCode)
+      } else {
+        await handleRegularLogin(loginData.email)
       }
     } catch (error) {
       setMessage("An error occurred during login")
@@ -149,71 +95,52 @@ export function LoginForm() {
     setMessage("")
 
     try {
-      // Validate admin code if signing up as admin
-      if (signupData.role === "admin") {
-        const validation = await validateAdminCode(signupData.admin_code)
-        if (!validation.valid) {
-          setMessage(validation.message)
-          setLoading(false)
-          return
-        }
-      }
-
-      // Check if email already exists
-      const { data: existingUser } = await supabase.from("users").select("email").eq("email", signupData.email).single()
-
-      if (existingUser) {
-        setMessage("Email already exists. Please use the login tab.")
+      // Validate required fields
+      if (!signupData.email || !signupData.full_name || !signupData.role) {
+        setMessage("Please fill in all required fields")
         setLoading(false)
         return
       }
 
-      const uniqueId = generateUniqueId(signupData.role)
+      // For students, require at least one parent contact
+      if (signupData.role === "student" && !signupData.parent_email && !signupData.parent_phone) {
+        setMessage("Please provide at least one parent contact (email or phone)")
+        setLoading(false)
+        return
+      }
 
-      const { data: newUser, error } = await supabase
-        .from("users")
-        .insert([
-          {
-            unique_id: uniqueId,
-            email: signupData.email,
-            full_name: signupData.full_name,
-            role: signupData.role,
-            class_number: signupData.class_number || null,
-          },
-        ])
-        .select()
-        .single()
+      const result = await createUser({
+        email: signupData.email,
+        full_name: signupData.full_name,
+        role: signupData.role as "teacher" | "student",
+        class_number: signupData.class_number,
+        parent_email: signupData.parent_email,
+        parent_phone: signupData.parent_phone,
+      })
 
-      if (error) {
-        setMessage("Error creating account: " + error.message)
-      } else {
-        // Record admin code usage if applicable
-        if (signupData.role === "admin") {
-          const validation = await validateAdminCode(signupData.admin_code)
-          if (validation.valid && validation.adminCodeId) {
-            await recordAdminCodeUsage(validation.adminCodeId, newUser.id)
-          }
-        }
+      if (!result.success) {
+        setMessage(result.error ?? "Failed to create account")
+        setLoading(false)
+        return
+      }
 
-        // Auto-login after successful signup
-        localStorage.setItem("currentUser", JSON.stringify(newUser))
-        setMessage(`Account created successfully! Your ID is: ${uniqueId}`)
+      setMessage(result.message ?? "Account created successfully!")
 
-        // Redirect after a short delay to show the ID
+      if (!result.needsVerification) {
+        // Auto-login for students
+        localStorage.setItem("currentUser", JSON.stringify(result.user))
+
         setTimeout(() => {
-          switch (signupData.role) {
-            case "admin":
-              router.push("/admin")
-              break
-            case "teacher":
-              router.push("/teacher")
-              break
+          switch (result.user.role) {
             case "student":
               router.push("/student")
               break
+            default:
+              break
           }
-        }, 2000)
+        }, 3000)
       }
+      // For teachers, they need to verify email before they can login
     } catch (error) {
       setMessage("An error occurred during signup")
     } finally {
@@ -235,22 +162,69 @@ export function LoginForm() {
           </TabsList>
 
           <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-4">
+              {/* Login Type Selector */}
               <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  value={loginData.email}
-                  onChange={(e) => setLoginData({ email: e.target.value })}
-                  placeholder="Enter your email"
-                  required
-                />
+                <Label>Login As</Label>
+                <Select
+                  value={loginData.loginType}
+                  onValueChange={(value) =>
+                    setLoginData({ ...loginData, loginType: value ?? "regular", email: "", adminCode: "" })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="regular">Teacher/Student</SelectItem>
+                    <SelectItem value="admin">School Administrator</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
-              </Button>
-            </form>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                {loginData.loginType === "regular" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-code">
+                      <Key className="inline w-4 h-4 mr-1" />
+                      Admin Access Code
+                    </Label>
+                    <Input
+                      id="admin-code"
+                      type="password"
+                      value={loginData.adminCode}
+                      onChange={(e) => setLoginData({ ...loginData, adminCode: e.target.value.toUpperCase() })}
+                      placeholder="Enter your unique admin code"
+                      required
+                    />
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        Use your unique admin code to access the administrator dashboard.
+                        <br />
+                        Contact school administration if you've forgotten your code.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Signing in..." : loginData.loginType === "admin" ? "Admin Sign In" : "Sign In"}
+                </Button>
+              </form>
+            </div>
           </TabsContent>
 
           <TabsContent value="signup">
@@ -282,7 +256,7 @@ export function LoginForm() {
                 <Label htmlFor="signup-role">I am a...</Label>
                 <Select
                   value={signupData.role}
-                  onValueChange={(value) => setSignupData({ ...signupData, role: value })}
+                  onValueChange={(value) => setSignupData({ ...signupData, role: value ?? "" })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select your role" />
@@ -290,46 +264,85 @@ export function LoginForm() {
                   <SelectContent>
                     <SelectItem value="student">Student</SelectItem>
                     <SelectItem value="teacher">Teacher</SelectItem>
-                    <SelectItem value="admin">School Administrator</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {signupData.role === "admin" && (
-                <div className="space-y-2">
-                  <Label htmlFor="admin-code">Admin Access Code</Label>
-                  <Input
-                    id="admin-code"
-                    type="password"
-                    value={signupData.admin_code}
-                    onChange={(e) => setSignupData({ ...signupData, admin_code: e.target.value.toUpperCase() })}
-                    placeholder="Enter admin verification code"
-                    required
-                  />
+              {signupData.role === "student" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="class-number">Class Number</Label>
+                    <Input
+                      id="class-number"
+                      value={signupData.class_number}
+                      onChange={(e) => setSignupData({ ...signupData, class_number: e.target.value })}
+                      placeholder="e.g., 10A, 12B"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium">Parent/Guardian Contact (At least one required)</Label>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="parent-email" className="text-sm flex items-center">
+                        <Mail className="w-3 h-3 mr-1" />
+                        Parent Email
+                      </Label>
+                      <Input
+                        id="parent-email"
+                        type="email"
+                        value={signupData.parent_email}
+                        onChange={(e) => setSignupData({ ...signupData, parent_email: e.target.value })}
+                        placeholder="parent@email.com"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="parent-phone" className="text-sm flex items-center">
+                        <Phone className="w-3 h-3 mr-1" />
+                        Parent Phone
+                      </Label>
+                      <Input
+                        id="parent-phone"
+                        type="tel"
+                        value={signupData.parent_phone}
+                        onChange={(e) => setSignupData({ ...signupData, parent_phone: e.target.value })}
+                        placeholder="+1234567890"
+                      />
+                    </div>
+
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        Your parent/guardian will receive a notification about your registration and can use this
+                        contact info to access the parent portal.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                </>
+              )}
+
+              {signupData.role === "teacher" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="teacher-dept">Department (Optional)</Label>
+                    <Input
+                      id="teacher-dept"
+                      value={signupData.class_number}
+                      onChange={(e) => setSignupData({ ...signupData, class_number: e.target.value })}
+                      placeholder="e.g., Mathematics, Science"
+                    />
+                  </div>
+
                   <Alert>
                     <Info className="h-4 w-4" />
                     <AlertDescription className="text-xs">
-                      Current valid codes: SCHOOL2024, PRINCIPAL2024, SETUP2024
-                      <br />
-                      Contact school administration if you need an admin code.
+                      <strong>Email Verification Required:</strong> You'll need to verify your email address before you
+                      can log in. Check your inbox after registration.
                     </AlertDescription>
                   </Alert>
-                </div>
-              )}
-
-              {(signupData.role === "student" || signupData.role === "teacher") && (
-                <div className="space-y-2">
-                  <Label htmlFor="class-number">
-                    {signupData.role === "student" ? "Class Number" : "Department/Class (Optional)"}
-                  </Label>
-                  <Input
-                    id="class-number"
-                    value={signupData.class_number}
-                    onChange={(e) => setSignupData({ ...signupData, class_number: e.target.value })}
-                    placeholder={signupData.role === "student" ? "e.g., 10A, 12B" : "e.g., Mathematics Dept"}
-                    required={signupData.role === "student"}
-                  />
-                </div>
+                </>
               )}
 
               <Button type="submit" className="w-full" disabled={loading || !signupData.role}>
@@ -346,7 +359,7 @@ export function LoginForm() {
               message.includes("Invalid") ||
               message.includes("not found") ||
               message.includes("expired") ||
-              message.includes("maximum")
+              message.includes("verify your email")
                 ? "text-red-600"
                 : "text-green-600"
             }`}
