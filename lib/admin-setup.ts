@@ -12,6 +12,7 @@ export function generateAdminCode(): string {
 
 /**
  * Creates a new admin user manually (for developer setup)
+ * No email verification required
  */
 export async function createAdminUser(adminData: {
   email: string
@@ -19,53 +20,68 @@ export async function createAdminUser(adminData: {
   class_number?: string
 }) {
   try {
+    console.log("Starting admin user creation process...")
+
     // Generate unique admin code
     const adminCode = generateAdminCode()
+    console.log("Generated admin code:", adminCode)
 
     // Generate unique ID
     const uniqueId = `A${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)
       .toString()
       .padStart(3, "0")}`
+    console.log("Generated unique ID:", uniqueId)
 
     // Check if email already exists
-    const { data: existingUser } = await supabase.from("users").select("email").eq("email", adminData.email).single()
+    console.log("Checking if email exists:", adminData.email)
+    const { data: existingUser, error: emailCheckError } = await supabase
+      .from("users")
+      .select("email")
+      .eq("email", adminData.email)
+      .maybeSingle()
+
+    if (emailCheckError) {
+      console.error("Error checking existing email:", emailCheckError)
+      throw new Error(`Email check failed: ${emailCheckError.message}`)
+    }
 
     if (existingUser) {
+      console.log("Email already exists")
       throw new Error("Email already exists")
     }
 
-    // Check if admin code already exists (very unlikely but safety check)
-    const { data: existingCode } = await supabase
-      .from("users")
-      .select("admin_code")
-      .eq("admin_code", adminCode)
-      .single()
-
-    if (existingCode) {
-      // Regenerate if collision (very rare)
-      return createAdminUser(adminData)
+    // Prepare admin user data - NO email verification
+    const newAdminData = {
+      unique_id: uniqueId,
+      email: adminData.email,
+      full_name: adminData.full_name,
+      role: "admin",
+      class_number: adminData.class_number || null,
+      admin_code: adminCode,
+      // No email_verified field
     }
+
+    console.log("Creating admin user with data:", newAdminData)
 
     // Create admin user
-    const { data: newAdmin, error } = await supabase
-      .from("users")
-      .insert([
-        {
-          unique_id: uniqueId,
-          email: adminData.email,
-          full_name: adminData.full_name,
-          role: "admin",
-          class_number: adminData.class_number || null,
-          admin_code: adminCode,
-          email_verified: true, // Admins don't need email verification
-        },
-      ])
-      .select()
-      .single()
+    const { data: newAdmin, error } = await supabase.from("users").insert([newAdminData]).select().single()
 
     if (error) {
-      throw error
+      console.error("Error inserting admin user:", error)
+      console.error("Error details:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+      throw new Error(`Failed to create admin user: ${error.message}`)
     }
+
+    if (!newAdmin) {
+      throw new Error("Admin user was not returned after creation")
+    }
+
+    console.log("Admin user created successfully:", newAdmin)
 
     return {
       success: true,
@@ -93,7 +109,10 @@ export async function getAllAdmins() {
       .eq("role", "admin")
       .order("created_at", { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error("Error fetching admins:", error)
+      throw error
+    }
 
     return { success: true, admins: admins || [] }
   } catch (error) {
@@ -106,7 +125,7 @@ export async function getAllAdmins() {
 }
 
 /**
- * Validates admin code for login
+ * Validates admin code for login - No email verification check
  */
 export async function validateAdminCode(adminCode: string) {
   try {
@@ -118,6 +137,7 @@ export async function validateAdminCode(adminCode: string) {
       .single()
 
     if (error || !admin) {
+      console.log("Admin code validation failed:", { adminCode, error })
       return {
         valid: false,
         message: "Invalid admin code. Please check your code and try again.",
