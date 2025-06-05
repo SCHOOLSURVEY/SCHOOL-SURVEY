@@ -5,12 +5,19 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { authenticate, createUser } from "@/lib/auth-actions"
+import { validateAdminCode } from "@/lib/admin-setup"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 
 const loginSchema = z.object({
   email: z.string().email({
     message: "Please enter a valid email address.",
+  }),
+})
+
+const adminLoginSchema = z.object({
+  adminCode: z.string().min(8, {
+    message: "Admin code must be at least 8 characters.",
   }),
 })
 
@@ -34,6 +41,7 @@ const signupSchema = z.object({
 })
 
 type LoginSchemaType = z.infer<typeof loginSchema>
+type AdminLoginSchemaType = z.infer<typeof adminLoginSchema>
 type SignupSchemaType = z.infer<typeof signupSchema>
 
 type LoginFormProps = {
@@ -42,17 +50,19 @@ type LoginFormProps = {
 
 // Confetti Component
 const Confetti = ({ isActive }: { isActive: boolean }) => {
-  const [confettiPieces, setConfettiPieces] = useState<Array<{
-    id: number
-    x: number
-    y: number
-    rotation: number
-    color: string
-    size: number
-    velocityX: number
-    velocityY: number
-    rotationSpeed: number
-  }>>([])
+  const [confettiPieces, setConfettiPieces] = useState<
+    Array<{
+      id: number
+      x: number
+      y: number
+      rotation: number
+      color: string
+      size: number
+      velocityX: number
+      velocityY: number
+      rotationSpeed: number
+    }>
+  >([])
 
   useEffect(() => {
     if (!isActive) {
@@ -60,7 +70,7 @@ const Confetti = ({ isActive }: { isActive: boolean }) => {
       return
     }
 
-    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd', '#98d8c8', '#f7dc6f']
+    const colors = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#ffeaa7", "#dda0dd", "#98d8c8", "#f7dc6f"]
     const pieces = Array.from({ length: 50 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
@@ -70,21 +80,24 @@ const Confetti = ({ isActive }: { isActive: boolean }) => {
       size: Math.random() * 8 + 4,
       velocityX: (Math.random() - 0.5) * 4,
       velocityY: Math.random() * 3 + 2,
-      rotationSpeed: (Math.random() - 0.5) * 10
+      rotationSpeed: (Math.random() - 0.5) * 10,
     }))
 
     setConfettiPieces(pieces)
 
     // Animate confetti
     const animateConfetti = () => {
-      setConfettiPieces(prevPieces => 
-        prevPieces.map(piece => ({
-          ...piece,
-          x: piece.x + piece.velocityX,
-          y: piece.y + piece.velocityY,
-          rotation: piece.rotation + piece.rotationSpeed,
-          velocityY: piece.velocityY + 0.1 // gravity
-        })).filter(piece => piece.y < 120) // remove pieces that fall off screen
+      setConfettiPieces(
+        (prevPieces) =>
+          prevPieces
+            .map((piece) => ({
+              ...piece,
+              x: piece.x + piece.velocityX,
+              y: piece.y + piece.velocityY,
+              rotation: piece.rotation + piece.rotationSpeed,
+              velocityY: piece.velocityY + 0.1, // gravity
+            }))
+            .filter((piece) => piece.y < 120), // remove pieces that fall off screen
       )
     }
 
@@ -104,7 +117,7 @@ const Confetti = ({ isActive }: { isActive: boolean }) => {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-      {confettiPieces.map(piece => (
+      {confettiPieces.map((piece) => (
         <div
           key={piece.id}
           className="absolute rounded-sm"
@@ -115,7 +128,7 @@ const Confetti = ({ isActive }: { isActive: boolean }) => {
             height: `${piece.size}px`,
             backgroundColor: piece.color,
             transform: `rotate(${piece.rotation}deg)`,
-            transition: 'none'
+            transition: "none",
           }}
         />
       ))}
@@ -124,41 +137,79 @@ const Confetti = ({ isActive }: { isActive: boolean }) => {
 }
 
 // Success Animation Component
-const SuccessAnimation = ({ isVisible, type }: { isVisible: boolean; type: 'login' | 'signup' }) => {
+const SuccessAnimation = ({ isVisible, type }: { isVisible: boolean; type: "login" | "signup" | "admin" }) => {
   if (!isVisible) return null
+
+  const getContent = () => {
+    switch (type) {
+      case "admin":
+        return {
+          title: "Admin Access Granted!",
+          description: "Welcome to the admin dashboard.",
+          bgColor: "from-purple-400 to-indigo-500",
+        }
+      case "login":
+        return {
+          title: "Welcome Back!",
+          description: "Successfully logged in. Redirecting...",
+          bgColor: "from-green-400 to-emerald-500",
+        }
+      case "signup":
+        return {
+          title: "Sign Up Successful!",
+          description: "Account created successfully. Redirecting...",
+          bgColor: "from-green-400 to-emerald-500",
+        }
+    }
+  }
+
+  const content = getContent()
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
       <div className="bg-white rounded-2xl p-8 shadow-2xl animate-scale-up-bounce max-w-sm mx-4 text-center border">
-        <div className="bg-gradient-to-r from-green-400 to-emerald-500 rounded-full p-4 mx-auto mb-4 w-20 h-20 flex items-center justify-center animate-pulse-glow">
-          <svg
-            className="w-10 h-10 text-white animate-check-draw"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={3}
-              d="M5 13l4 4L19 7"
-              className="animate-check-path"
-            />
-          </svg>
+        <div
+          className={`bg-gradient-to-r ${content.bgColor} rounded-full p-4 mx-auto mb-4 w-20 h-20 flex items-center justify-center animate-pulse-glow`}
+        >
+          {type === "admin" ? (
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              />
+            </svg>
+          ) : (
+            <svg
+              className="w-10 h-10 text-white animate-check-draw"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={3}
+                d="M5 13l4 4L19 7"
+                className="animate-check-path"
+              />
+            </svg>
+          )}
         </div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-          {type === 'login' ? 'Welcome Back!' : 'Sign Up Successful!'}
-        </h3>
-        <p className="text-gray-600 text-sm">
-          {type === 'login' 
-            ? 'Successfully logged in. Redirecting...' 
-            : 'Account created successfully. Redirecting...'}
-        </p>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">{content.title}</h3>
+        <p className="text-gray-600 text-sm">{content.description}</p>
         <div className="mt-4 flex justify-center">
           <div className="flex space-x-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce animation-delay-150"></div>
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce animation-delay-300"></div>
+            <div
+              className={`w-2 h-2 ${type === "admin" ? "bg-purple-500" : "bg-green-500"} rounded-full animate-bounce`}
+            ></div>
+            <div
+              className={`w-2 h-2 ${type === "admin" ? "bg-purple-500" : "bg-green-500"} rounded-full animate-bounce animation-delay-150`}
+            ></div>
+            <div
+              className={`w-2 h-2 ${type === "admin" ? "bg-purple-500" : "bg-green-500"} rounded-full animate-bounce animation-delay-300`}
+            ></div>
           </div>
         </div>
       </div>
@@ -167,11 +218,12 @@ const SuccessAnimation = ({ isVisible, type }: { isVisible: boolean; type: 'logi
 }
 
 export function LoginForm({ className }: LoginFormProps) {
-  const [mode, setMode] = useState<"login" | "signup">("login")
+  const [mode, setMode] = useState<"login" | "signup" | "admin">("login")
   const [message, setMessage] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [showLoginSuccess, setShowLoginSuccess] = useState(false)
   const [showSignupConfetti, setShowSignupConfetti] = useState(false)
+  const [showAdminSuccess, setShowAdminSuccess] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -179,6 +231,13 @@ export function LoginForm({ className }: LoginFormProps) {
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
+    },
+  })
+
+  const adminLoginForm = useForm<AdminLoginSchemaType>({
+    resolver: zodResolver(adminLoginSchema),
+    defaultValues: {
+      adminCode: "",
     },
   })
 
@@ -198,13 +257,16 @@ export function LoginForm({ className }: LoginFormProps) {
   const watchedValues = signupForm.watch()
 
   // Reset forms when switching modes
-  const switchMode = (newMode: "login" | "signup") => {
+  const switchMode = (newMode: "login" | "signup" | "admin") => {
     setMode(newMode)
     setMessage("")
     setShowLoginSuccess(false)
     setShowSignupConfetti(false)
+    setShowAdminSuccess(false)
     if (newMode === "login") {
       loginForm.reset()
+    } else if (newMode === "admin") {
+      adminLoginForm.reset()
     } else {
       signupForm.reset()
     }
@@ -260,6 +322,47 @@ export function LoginForm({ className }: LoginFormProps) {
     } catch (error) {
       console.error("Login error details:", error)
       setMessage("Failed to authenticate. Please check your connection and try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleAdminLogin(values: AdminLoginSchemaType) {
+    setLoading(true)
+    setMessage("")
+
+    try {
+      console.log("Attempting admin login with code:", values.adminCode)
+
+      const result = await validateAdminCode(values.adminCode)
+
+      console.log("Admin login result:", result)
+
+      if (!result.valid) {
+        setMessage(result.message || "Invalid admin code")
+        setLoading(false)
+        return
+      }
+
+      // Show admin success animation
+      setShowAdminSuccess(true)
+
+      toast({
+        title: "Admin Access Granted!",
+        description: "Welcome to the admin dashboard.",
+      })
+
+      // Store admin data and redirect after animation
+      if (typeof window !== "undefined") {
+        localStorage.setItem("currentUser", JSON.stringify(result.admin))
+      }
+
+      setTimeout(() => {
+        router.push("/admin")
+      }, 1500) // Wait for animation to complete
+    } catch (error) {
+      console.error("Admin login error details:", error)
+      setMessage("Failed to validate admin code. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -369,12 +472,24 @@ export function LoginForm({ className }: LoginFormProps) {
     }
   }
 
+  const getModeTitle = () => {
+    switch (mode) {
+      case "admin":
+        return "Admin Access"
+      case "login":
+        return "Sign in to your account"
+      case "signup":
+        return "Create a new account"
+    }
+  }
+
   return (
     <>
-      {/* Success Animation for Login/Signup */}
+      {/* Success Animations */}
       <SuccessAnimation isVisible={showLoginSuccess} type="login" />
       <SuccessAnimation isVisible={showSignupConfetti} type="signup" />
-      
+      <SuccessAnimation isVisible={showAdminSuccess} type="admin" />
+
       {/* Confetti Animation for Signup */}
       <Confetti isActive={showSignupConfetti} />
 
@@ -382,7 +497,38 @@ export function LoginForm({ className }: LoginFormProps) {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">School Management System</h1>
-          <p className="text-sm text-gray-600">{mode === "login" ? "Sign in to your account" : "Create a new account"}</p>
+          <p className="text-sm text-gray-600">{getModeTitle()}</p>
+        </div>
+
+        {/* Mode Tabs */}
+        <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+          <button
+            type="button"
+            onClick={() => switchMode("login")}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              mode === "login" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Login
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("signup")}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              mode === "signup" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Sign Up
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("admin")}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              mode === "admin" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Admin
+          </button>
         </div>
 
         {/* Error Message */}
@@ -423,7 +569,14 @@ export function LoginForm({ className }: LoginFormProps) {
                     fill="none"
                     viewBox="0 0 24 24"
                   >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
                     <path
                       className="opacity-75"
                       fill="currentColor"
@@ -434,6 +587,58 @@ export function LoginForm({ className }: LoginFormProps) {
                 </span>
               ) : (
                 "Sign In"
+              )}
+            </button>
+          </form>
+        ) : mode === "admin" ? (
+          <form onSubmit={adminLoginForm.handleSubmit(handleAdminLogin)} className="space-y-5">
+            <div className="animate-slide-up-subtle">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Admin Code</label>
+              <input
+                type="text"
+                placeholder="Enter your admin code (e.g., ADM-12345678)"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all duration-200 hover:border-gray-400 font-mono"
+                {...adminLoginForm.register("adminCode")}
+              />
+              {adminLoginForm.formState.errors.adminCode && (
+                <p className="text-red-500 text-xs mt-2 animate-fade-in-subtle">
+                  {adminLoginForm.formState.errors.adminCode.message}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Admin codes are provided by system administrators</p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Verifying...
+                </span>
+              ) : (
+                "Access Admin Dashboard"
               )}
             </button>
           </form>
@@ -552,7 +757,14 @@ export function LoginForm({ className }: LoginFormProps) {
                     fill="none"
                     viewBox="0 0 24 24"
                   >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
                     <path
                       className="opacity-75"
                       fill="currentColor"
@@ -567,35 +779,6 @@ export function LoginForm({ className }: LoginFormProps) {
             </button>
           </form>
         )}
-
-        {/* Mode Switch */}
-        <div className="text-center mt-8 pt-6 border-t border-gray-100">
-          <p className="text-sm text-gray-600">
-            {mode === "login" ? (
-              <>
-                {"Don't have an account? "}
-                <button
-                  className="text-gray-900 hover:underline font-medium transition-all duration-200 hover:text-black"
-                  onClick={() => switchMode("signup")}
-                  type="button"
-                >
-                  Sign up
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button
-                  className="text-gray-900 hover:underline font-medium transition-all duration-200 hover:text-black"
-                  onClick={() => switchMode("login")}
-                  type="button"
-                >
-                  Sign in
-                </button>
-              </>
-            )}
-          </p>
-        </div>
       </div>
 
       <style jsx>{`
