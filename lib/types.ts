@@ -7,6 +7,11 @@ export interface User {
   class_number?: string
   created_at: string
   updated_at: string
+  admin_code?: string;
+  email_verified?: boolean;
+  parent_email?: string;
+  parent_phone?: string;
+  verification_token?: string;
 }
 
 export interface Subject {

@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { supabase } from "@/lib/supabase"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { createUser } from "@/lib/auth-flow"
+import { Info, Mail, Phone } from "lucide-react"
 
 interface OnboardingFormProps {
   onSuccess: () => void
@@ -20,18 +22,11 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps) {
     full_name: "",
     role: "",
     class_number: "",
+    parent_email: "",
+    parent_phone: "",
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
-
-  const generateUniqueId = (role: string) => {
-    const prefix = role === "teacher" ? "T" : "S"
-    const timestamp = Date.now().toString().slice(-6)
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")
-    return `${prefix}${timestamp}${random}`
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,27 +34,45 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps) {
     setMessage("")
 
     try {
-      const uniqueId = generateUniqueId(formData.role)
+      // Validate required fields
+      if (!formData.email || !formData.full_name || !formData.role) {
+        setMessage("Please fill in all required fields")
+        setLoading(false)
+        return
+      }
 
-      const { error } = await supabase.from("users").insert([
-        {
-          unique_id: uniqueId,
-          email: formData.email,
-          full_name: formData.full_name,
-          role: formData.role,
-          class_number: formData.class_number || null,
-        },
-      ])
+      // For students, require at least one parent contact
+      if (formData.role === "student" && !formData.parent_email && !formData.parent_phone) {
+        setMessage("Please provide at least one parent contact for students")
+        setLoading(false)
+        return
+      }
 
-      if (error) {
-        setMessage("Error creating user: " + error.message)
-      } else {
-        setMessage(`User created successfully! ID: ${uniqueId}`)
-        setFormData({ email: "", full_name: "", role: "", class_number: "" })
+      const result = await createUser({
+        email: formData.email,
+        full_name: formData.full_name,
+        role: formData.role as "teacher" | "student",
+        class_number: formData.class_number,
+        parent_email: formData.parent_email,
+        parent_phone: formData.parent_phone,
+      })
+
+      if (result.success) {
+        setMessage(result.message ?? "User created successfully!")
+        setFormData({
+          email: "",
+          full_name: "",
+          role: "",
+          class_number: "",
+          parent_email: "",
+          parent_phone: "",
+        })
         onSuccess()
+      } else {
+        setMessage(result.error ?? "Failed to create user")
       }
     } catch (error) {
-      setMessage("An error occurred")
+      setMessage("An error occurred while creating the user")
     } finally {
       setLoading(false)
     }
@@ -69,13 +82,13 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps) {
     <Card>
       <CardHeader>
         <CardTitle>Onboard New User</CardTitle>
-        <CardDescription>Add teachers and students to the system</CardDescription>
+        <CardDescription>Add teachers and students to the system with proper verification flow</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="full_name">Full Name</Label>
+              <Label htmlFor="full_name">Full Name *</Label>
               <Input
                 id="full_name"
                 value={formData.full_name}
@@ -84,7 +97,7 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
@@ -97,8 +110,8 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+              <Label htmlFor="role">Role *</Label>
+              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value ?? "" })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -109,22 +122,89 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="class_number">Class Number</Label>
+              <Label htmlFor="class_number">
+                {formData.role === "student" ? "Class Number" : "Department (Optional)"}
+              </Label>
               <Input
                 id="class_number"
                 value={formData.class_number}
                 onChange={(e) => setFormData({ ...formData, class_number: e.target.value })}
-                placeholder="e.g., 10A, 12B"
+                placeholder={formData.role === "student" ? "e.g., 10A, 12B" : "e.g., Mathematics"}
+                required={formData.role === "student"}
               />
             </div>
           </div>
 
-          <Button type="submit" disabled={loading}>
+          {/* Student Parent Contact Fields */}
+          {formData.role === "student" && (
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+              <Label className="text-sm font-medium">Parent/Guardian Contact (At least one required)</Label>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="parent_email" className="text-sm flex items-center">
+                    <Mail className="w-3 h-3 mr-1" />
+                    Parent Email
+                  </Label>
+                  <Input
+                    id="parent_email"
+                    type="email"
+                    value={formData.parent_email}
+                    onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
+                    placeholder="parent@email.com"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="parent_phone" className="text-sm flex items-center">
+                    <Phone className="w-3 h-3 mr-1" />
+                    Parent Phone
+                  </Label>
+                  <Input
+                    id="parent_phone"
+                    type="tel"
+                    value={formData.parent_phone}
+                    onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
+                    placeholder="+1234567890"
+                  />
+                </div>
+              </div>
+
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Parent will receive a notification about the student registration and can use this contact info for
+                  the parent portal.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          {/* Teacher Verification Notice */}
+          {formData.role === "teacher" && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                <strong>Teacher Verification:</strong> The teacher will receive an email verification link and must
+                verify their email before they can log in.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Button type="submit" disabled={loading || !formData.role}>
             {loading ? "Creating..." : "Create User"}
           </Button>
 
           {message && (
-            <p className={`text-sm ${message.includes("Error") ? "text-red-600" : "text-green-600"}`}>{message}</p>
+            <div
+              className={`text-sm ${
+                message.includes("Error") || message.includes("Failed") || message.includes("provide")
+                  ? "text-red-600"
+                  : "text-green-600"
+              }`}
+            >
+              {message}
+            </div>
           )}
         </form>
       </CardContent>
