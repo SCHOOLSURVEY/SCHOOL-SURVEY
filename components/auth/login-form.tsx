@@ -12,10 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
-import { Info } from "lucide-react"
+import { Info, Key } from "lucide-react"
 
 export function LoginForm() {
-  const [loginData, setLoginData] = useState({ email: "" })
+  const [loginData, setLoginData] = useState({ 
+    email: "", 
+    adminCode: "",
+    loginType: "regular" // "regular" or "admin"
+  })
   const [signupData, setSignupData] = useState({
     email: "",
     full_name: "",
@@ -38,12 +42,6 @@ export function LoginForm() {
 
   const validateAdminCode = async (code: string) => {
     try {
-      // First check if the code matches any of our known valid codes
-      const validCodes = ["SCHOOL2024", "PRINCIPAL2024", "SETUP2024"]
-      if (!validCodes.includes(code)) {
-        return { valid: false, message: "Invalid admin code. Please use: SCHOOL2024, PRINCIPAL2024, or SETUP2024" }
-      }
-
       // Try to validate against database
       const { data: adminCode, error } = await supabase
         .from("admin_codes")
@@ -55,7 +53,11 @@ export function LoginForm() {
       if (error) {
         // If database validation fails, allow the hardcoded codes for now
         console.warn("Database validation failed, using fallback validation:", error)
-        return { valid: true, adminCodeId: null }
+        const validCodes = ["SCHOOL2024", "PRINCIPAL2024", "SETUP2024"]
+        if (validCodes.includes(code)) {
+          return { valid: true, adminCodeId: null }
+        }
+        return { valid: false, message: "Invalid admin code. Please contact school administration." }
       }
 
       if (!adminCode) {
@@ -63,25 +65,22 @@ export function LoginForm() {
       }
 
       // Check if code has expired
-      const now = new Date()
-      const expiresAt = new Date(adminCode.expires_at)
-      if (expiresAt < now) {
-        return { valid: false, message: "This admin code has expired. Please request a new one." }
+      if (adminCode.expires_at) {
+        const now = new Date()
+        const expiresAt = new Date(adminCode.expires_at)
+        if (expiresAt < now) {
+          return { valid: false, message: "This admin code has expired. Please request a new one." }
+        }
       }
 
-      // Check if code has reached max uses
-      if (adminCode.current_uses >= adminCode.max_uses) {
+      // Check if code has reached max uses (only if max_uses is set)
+      if (adminCode.max_uses && adminCode.current_uses >= adminCode.max_uses) {
         return { valid: false, message: "This admin code has reached its maximum usage limit." }
       }
 
-      return { valid: true, adminCodeId: adminCode.id }
+      return { valid: true, adminCodeId: adminCode.id, adminCode }
     } catch (error) {
       console.error("Error validating admin code:", error)
-      // Fallback to hardcoded validation
-      const validCodes = ["SCHOOL2024", "PRINCIPAL2024", "SETUP2024"]
-      if (validCodes.includes(code)) {
-        return { valid: true, adminCodeId: null }
-      }
       return { valid: false, message: "Error validating admin code. Please try again." }
     }
   }
@@ -99,9 +98,145 @@ export function LoginForm() {
       ])
 
       // Increment usage count
-      await supabase.rpc("increment_admin_code_usage", { code_id: adminCodeId })
+      const { error } = await supabase
+        .from("admin_codes")
+        .update({ 
+          current_uses: supabase.raw('current_uses + 1'),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", adminCodeId)
+
+      if (error) {
+        console.error("Error incrementing usage count:", error)
+      }
     } catch (error) {
       console.error("Error recording admin code usage:", error)
+    }
+  }
+
+  const handleAdminLogin = async (adminCode: string) => {
+    // Validate the admin code
+    const validation = await validateAdminCode(adminCode)
+    if (!validation.valid) {
+      setMessage(validation.message)
+      return false
+    }
+
+    // For database codes, find the associated admin user
+    if (validation.adminCodeId) {
+      try {
+        // Find admin user associated with this code (if created_by is set)
+        let adminUser = null
+        
+        if (validation.adminCode.created_by) {
+          const { data: userData, error: userError } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", validation.adminCode.created_by)
+            .eq("role", "admin")
+            .single()
+
+          if (!userError && userData) {
+            adminUser = userData
+          }
+        }
+
+        // If no specific user associated, find any admin (for shared codes)
+        if (!adminUser) {
+          const { data: adminUsers, error: adminError } = await supabase
+            .from("users")
+            .select("*")
+            .eq("role", "admin")
+            .limit(1)
+
+          if (!adminError && adminUsers && adminUsers.length > 0) {
+            adminUser = adminUsers[0]
+          }
+        }
+
+        if (!adminUser) {
+          setMessage("No admin user found for this code. Please contact administration.")
+          return false
+        }
+
+        // Record usage
+        await recordAdminCodeUsage(validation.adminCodeId, adminUser.id)
+
+        // Set user in localStorage
+        localStorage.setItem("currentUser", JSON.stringify(adminUser))
+        router.push("/admin")
+        return true
+
+      } catch (error) {
+        console.error("Error during admin login:", error)
+        setMessage("Error during login. Please try again.")
+        return false
+      }
+    } else {
+      // For hardcoded codes, find any admin user
+      try {
+        const { data: adminUsers, error: adminError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("role", "admin")
+          .limit(1)
+
+        if (adminError || !adminUsers || adminUsers.length === 0) {
+          setMessage("No admin user found. Please contact administration.")
+          return false
+        }
+
+        const adminUser = adminUsers[0]
+        localStorage.setItem("currentUser", JSON.stringify(adminUser))
+        router.push("/admin")
+        return true
+
+      } catch (error) {
+        console.error("Error during admin login:", error)
+        setMessage("Error during login. Please try again.")
+        return false
+      }
+    }
+  }
+
+  const handleRegularLogin = async (email: string) => {
+    try {
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .single()
+
+      if (userError || !userData) {
+        setMessage("User not found. Please sign up or contact administration.")
+        return false
+      }
+
+      // Don't allow admins to login with email
+      if (userData.role === "admin") {
+        setMessage("Admin users must use their admin code to login. Please use the 'Admin Login' option.")
+        return false
+      }
+
+      localStorage.setItem("currentUser", JSON.stringify(userData))
+
+      switch (userData.role) {
+        case "teacher":
+          router.push("/teacher")
+          break
+        case "student":
+          router.push("/student")
+          break
+        default:
+          setMessage("Invalid user role.")
+          return false
+      }
+      return true
+
+    } catch (error) {
+      console.error("Error during regular login:", error)
+      setMessage("An error occurred during login")
+      return false
     }
   }
 
@@ -111,30 +246,10 @@ export function LoginForm() {
     setMessage("")
 
     try {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", loginData.email)
-        .single()
-
-      if (userError || !userData) {
-        setMessage("User not found. Please sign up or contact administration.")
-        setLoading(false)
-        return
-      }
-
-      localStorage.setItem("currentUser", JSON.stringify(userData))
-
-      switch (userData.role) {
-        case "admin":
-          router.push("/admin")
-          break
-        case "teacher":
-          router.push("/teacher")
-          break
-        case "student":
-          router.push("/student")
-          break
+      if (loginData.loginType === "admin") {
+        await handleAdminLogin(loginData.adminCode)
+      } else {
+        await handleRegularLogin(loginData.email)
       }
     } catch (error) {
       setMessage("An error occurred during login")
@@ -199,6 +314,13 @@ export function LoginForm() {
         localStorage.setItem("currentUser", JSON.stringify(newUser))
         setMessage(`Account created successfully! Your ID is: ${uniqueId}`)
 
+        // Show different messages for different roles
+        if (signupData.role === "admin") {
+          setMessage(`Admin account created! Your ID is: ${uniqueId}. Remember to use your admin code for future logins.`)
+        } else {
+          setMessage(`Account created successfully! Your ID is: ${uniqueId}`)
+        }
+
         // Redirect after a short delay to show the ID
         setTimeout(() => {
           switch (signupData.role) {
@@ -212,7 +334,7 @@ export function LoginForm() {
               router.push("/student")
               break
           }
-        }, 2000)
+        }, 3000)
       }
     } catch (error) {
       setMessage("An error occurred during signup")
@@ -235,22 +357,68 @@ export function LoginForm() {
           </TabsList>
 
           <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-4">
+              {/* Login Type Selector */}
               <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  value={loginData.email}
-                  onChange={(e) => setLoginData({ email: e.target.value })}
-                  placeholder="Enter your email"
-                  required
-                />
+                <Label>Login As</Label>
+                <Select
+                  value={loginData.loginType}
+                  onValueChange={(value) => setLoginData({ ...loginData, loginType: value, email: "", adminCode: "" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="regular">Teacher/Student</SelectItem>
+                    <SelectItem value="admin">School Administrator</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
-              </Button>
-            </form>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                {loginData.loginType === "regular" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-code">
+                      <Key className="inline w-4 h-4 mr-1" />
+                      Admin Access Code
+                    </Label>
+                    <Input
+                      id="admin-code"
+                      type="password"
+                      value={loginData.adminCode}
+                      onChange={(e) => setLoginData({ ...loginData, adminCode: e.target.value.toUpperCase() })}
+                      placeholder="Enter your unique admin code"
+                      required
+                    />
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        Use your unique admin code to access the administrator dashboard.
+                        <br />
+                        Contact school administration if you've forgotten your code.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Signing in..." : 
+                   loginData.loginType === "admin" ? "Admin Sign In" : "Sign In"}
+                </Button>
+              </form>
+            </div>
           </TabsContent>
 
           <TabsContent value="signup">
@@ -309,7 +477,7 @@ export function LoginForm() {
                   <Alert>
                     <Info className="h-4 w-4" />
                     <AlertDescription className="text-xs">
-                      Current valid codes: SCHOOL2024, PRINCIPAL2024, SETUP2024
+                      <strong>Important:</strong> After creating your admin account, you'll need to use this admin code (not your email) for all future logins.
                       <br />
                       Contact school administration if you need an admin code.
                     </AlertDescription>

@@ -92,3 +92,10 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@media (max-width: 768px) {
+  .custom-class {
+    font-size: 14px;
+  }
+}
+
