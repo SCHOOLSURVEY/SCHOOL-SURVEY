@@ -1,25 +1,79 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { SchoolManagement } from "@/components/admin/school-management"
 import { SchoolSpecificAdminCodesManager } from "@/components/admin/school-specific-admin-codes-manager"
+import { DeveloperAuth } from "@/components/auth/developer-auth"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/responsive-tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, Key, AlertTriangle, Info } from "lucide-react"
+import { Building2, Key, AlertTriangle, Info, LogOut } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export default function DeveloperPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Check if developer is already authenticated
+    const authStatus = sessionStorage.getItem("developer_authenticated")
+    if (authStatus === "true") {
+      setIsAuthenticated(true)
+    }
+    setLoading(false)
+  }, [])
+
+  const handleAuthenticated = () => {
+    setIsAuthenticated(true)
+  }
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("developer_authenticated")
+    setIsAuthenticated(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-sm text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <DeveloperAuth onAuthenticated={handleAuthenticated} />
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center space-y-4">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-            <Building2 className="h-8 w-8 text-blue-600" />
+          <div className="flex justify-between items-start">
+            <div className="flex-1"></div>
+            <div className="flex-1 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+                <Building2 className="h-8 w-8 text-blue-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mt-4">Developer Setup</h1>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Create schools and manage school-specific administrators for the multi-tenant system.
+              </p>
+            </div>
+            <div className="flex-1 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center space-x-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </Button>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Developer Setup</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Create schools and manage school-specific administrators for the multi-tenant system.
-          </p>
         </div>
 
         {/* Important Notice */}
