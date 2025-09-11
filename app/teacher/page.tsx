@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/responsive-tabs"
 import { SurveyAnalytics } from "@/components/analytics/survey-analytics"
 import { QuickSurveyCreator } from "@/components/teacher/quick-survey-creator"
 import { Gradebook } from "@/components/teacher/gradebook"
 import { AssignmentManager } from "@/components/teacher/assignment-manager"
+import { AttendanceManager } from "@/components/teacher/attendance-manager"
+import { TeacherCodeDisplay } from "@/components/teacher/teacher-code-display"
 import { supabase } from "@/lib/supabase"
 import type { Course, User } from "@/lib/types"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { LogoutButton } from "@/components/auth/logout-button"
 import { BookOpen, Users, FileText, BarChart3, Calendar } from "lucide-react"
 
 export default function TeacherDashboard() {
@@ -124,67 +125,68 @@ export default function TeacherDashboard() {
   return (
     <DashboardLayout requiredRole="teacher">
       <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-            <p className="text-muted-foreground">Welcome, {currentUser.full_name}</p>
-            <p className="text-sm text-muted-foreground">ID: {currentUser.unique_id}</p>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-4 sm:space-y-0">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">Welcome, {currentUser.full_name}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">ID: {currentUser.unique_id}</p>
           </div>
-          <LogoutButton variant="destructive" />
         </div>
 
         {/* Stats Overview */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Total Students</CardTitle>
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalStudents}</div>
-              <p className="text-xs text-muted-foreground">Across all courses</p>
+              <div className="text-xl sm:text-2xl font-bold">{stats.totalStudents}</div>
+              <p className="text-xs text-muted-foreground hidden sm:block">Across all courses</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Assignments</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Assignments</CardTitle>
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalAssignments}</div>
-              <p className="text-xs text-muted-foreground">Created this term</p>
+              <div className="text-xl sm:text-2xl font-bold">{stats.totalAssignments}</div>
+              <p className="text-xs text-muted-foreground hidden sm:block">Created this term</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Grades</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Pending Grades</CardTitle>
+              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.pendingGrades}</div>
-              <p className="text-xs text-muted-foreground">Need grading</p>
+              <div className="text-xl sm:text-2xl font-bold">{stats.pendingGrades}</div>
+              <p className="text-xs text-muted-foreground hidden sm:block">Need grading</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Surveys</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Active Surveys</CardTitle>
+              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.activeSurveys}</div>
-              <p className="text-xs text-muted-foreground">Collecting feedback</p>
+              <div className="text-xl sm:text-2xl font-bold">{stats.activeSurveys}</div>
+              <p className="text-xs text-muted-foreground hidden sm:block">Collecting feedback</p>
             </CardContent>
           </Card>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="assignments">Assignments</TabsTrigger>
             <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
             <TabsTrigger value="surveys">Surveys</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="courses">My Courses</TabsTrigger>
+            <TabsTrigger value="account">My Account</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -229,6 +231,10 @@ export default function TeacherDashboard() {
 
           <TabsContent value="gradebook">
             <Gradebook teacherId={currentUser.id} />
+          </TabsContent>
+
+          <TabsContent value="attendance">
+            <AttendanceManager teacherId={currentUser.id} />
           </TabsContent>
 
           <TabsContent value="surveys">
@@ -279,6 +285,39 @@ export default function TeacherDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="account">
+            <div className="space-y-6">
+              <TeacherCodeDisplay user={currentUser} />
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account Information</CardTitle>
+                  <CardDescription>Your personal account details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Full Name</label>
+                      <p className="text-lg font-semibold">{currentUser.full_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Email</label>
+                      <p className="text-lg">{currentUser.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">User ID</label>
+                      <p className="text-lg font-mono">{currentUser.unique_id}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Role</label>
+                      <p className="text-lg capitalize">{currentUser.role}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

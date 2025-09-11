@@ -12,7 +12,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  ResponsiveContainer,
   LineChart,
   Line,
   PieChart,
@@ -360,15 +359,13 @@ export function AdvancedAnalytics() {
                   }}
                   className="h-[300px]"
                 >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analyticsData.gradeDistribution}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="grade" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="count" fill="var(--color-count)" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <BarChart data={analyticsData.gradeDistribution}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="grade" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="var(--color-count)" />
+                  </BarChart>
                 </ChartContainer>
               </CardContent>
             </Card>
@@ -388,15 +385,13 @@ export function AdvancedAnalytics() {
                   }}
                   className="h-[300px]"
                 >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analyticsData.coursePerformance}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="course" angle={-45} textAnchor="end" height={100} />
-                      <YAxis domain={[0, 100]} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="average" fill="var(--color-average)" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <BarChart data={analyticsData.coursePerformance}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="course" angle={-45} textAnchor="end" height={100} />
+                    <YAxis domain={[0, 100]} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="average" fill="var(--color-average)" />
+                  </BarChart>
                 </ChartContainer>
               </CardContent>
             </Card>
@@ -421,16 +416,14 @@ export function AdvancedAnalytics() {
                 }}
                 className="h-[300px]"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={analyticsData.weeklyActivity}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="week" />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line type="monotone" dataKey="grades" stroke="var(--color-grades)" strokeWidth={2} />
-                    <Line type="monotone" dataKey="assignments" stroke="var(--color-assignments)" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <LineChart data={analyticsData.weeklyActivity}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line type="monotone" dataKey="grades" stroke="var(--color-grades)" strokeWidth={2} />
+                  <Line type="monotone" dataKey="assignments" stroke="var(--color-assignments)" strokeWidth={2} />
+                </LineChart>
               </ChartContainer>
             </CardContent>
           </Card>
@@ -460,35 +453,33 @@ export function AdvancedAnalytics() {
                 }}
                 className="h-[400px]"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={analyticsData.attendanceTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Area
-                      type="monotone"
-                      dataKey="present"
-                      stackId="1"
-                      stroke="var(--color-present)"
-                      fill="var(--color-present)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="late"
-                      stackId="1"
-                      stroke="var(--color-late)"
-                      fill="var(--color-late)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="absent"
-                      stackId="1"
-                      stroke="var(--color-absent)"
-                      fill="var(--color-absent)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <AreaChart data={analyticsData.attendanceTrends}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area
+                    type="monotone"
+                    dataKey="present"
+                    stackId="1"
+                    stroke="var(--color-present)"
+                    fill="var(--color-present)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="late"
+                    stackId="1"
+                    stroke="var(--color-late)"
+                    fill="var(--color-late)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="absent"
+                    stackId="1"
+                    stroke="var(--color-absent)"
+                    fill="var(--color-absent)"
+                  />
+                </AreaChart>
               </ChartContainer>
             </CardContent>
           </Card>
@@ -530,24 +521,22 @@ export function AdvancedAnalytics() {
                   }}
                   className="h-[200px]"
                 >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={analyticsData.surveyInsights.byType}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="count"
-                        label={({ type, count }) => `${type}: ${count}`}
-                      >
-                        {analyticsData.surveyInsights.byType.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={analyticsData.surveyInsights.byType}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                      label={({ type, count }) => `${type}: ${count}`}
+                    >
+                      {analyticsData.surveyInsights.byType.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </PieChart>
                 </ChartContainer>
               </CardContent>
             </Card>
@@ -570,15 +559,13 @@ export function AdvancedAnalytics() {
                 }}
                 className="h-[300px]"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analyticsData.assignmentTypes}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="type" />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="var(--color-count)" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart data={analyticsData.assignmentTypes}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="type" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" fill="var(--color-count)" />
+                </BarChart>
               </ChartContainer>
             </CardContent>
           </Card>

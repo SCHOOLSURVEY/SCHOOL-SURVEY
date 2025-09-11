@@ -26,21 +26,23 @@ export function Breadcrumb() {
   }
 
   return (
-    <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-      <Link href="/" className="flex items-center hover:text-foreground">
-        <Home className="h-4 w-4" />
+    <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6 overflow-x-auto">
+      <Link href="/" className="flex items-center hover:text-foreground flex-shrink-0">
+        <Home className="h-3 w-3 sm:h-4 sm:w-4" />
       </Link>
       {segments.map((segment, index) => {
         const href = "/" + segments.slice(0, index + 1).join("/")
         const isLast = index === segments.length - 1
 
         return (
-          <div key={segment} className="flex items-center space-x-2">
-            <ChevronRight className="h-4 w-4" />
+          <div key={segment} className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+            <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
             {isLast ? (
-              <span className="text-foreground font-medium">{getBreadcrumbName(segment)}</span>
+              <span className="text-foreground font-medium truncate max-w-[120px] sm:max-w-none">
+                {getBreadcrumbName(segment)}
+              </span>
             ) : (
-              <Link href={href} className="hover:text-foreground">
+              <Link href={href} className="hover:text-foreground truncate max-w-[100px] sm:max-w-none">
                 {getBreadcrumbName(segment)}
               </Link>
             )}

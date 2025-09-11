@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { EnhancedSurveyForm } from "@/components/student/enhanced-survey-form"
+import { AttendanceView } from "@/components/student/attendance-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
 import type { Survey, User } from "@/lib/types"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { LogoutButton } from "@/components/auth/logout-button"
 import { BookOpen, Clock, Users, RefreshCw, AlertCircle } from "lucide-react"
 
 export default function StudentDashboard() {
@@ -175,11 +175,10 @@ export default function StudentDashboard() {
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
               {refreshing ? "Refreshing..." : "Refresh"}
             </Button>
-            <LogoutButton variant="destructive" />
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Course Enrollments */}
           <Card>
             <CardHeader>
@@ -218,7 +217,7 @@ export default function StudentDashboard() {
           </Card>
 
           {/* Available Surveys */}
-          <Card className="lg:col-span-2">
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Users className="h-5 w-5" />
@@ -292,6 +291,9 @@ export default function StudentDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Attendance View */}
+        <AttendanceView studentId={currentUser.id} />
 
         {/* Stats Card */}
         <div className="grid gap-4 md:grid-cols-3">

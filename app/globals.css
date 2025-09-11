@@ -69,9 +69,48 @@
 }
 
 
+/* Mobile-specific optimizations */
 @media (max-width: 768px) {
   .custom-class {
     font-size: 14px;
+  }
+  
+  /* Improve touch targets on mobile */
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better spacing for mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Improve table scrolling on mobile */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better form spacing on mobile */
+  .space-y-4 > * + * {
+    margin-top: 1rem;
+  }
+  
+  /* Improve dialog sizing on mobile */
+  [role="dialog"] {
+    margin: 1rem;
+    max-height: calc(100vh - 2rem);
+  }
+  
+  /* Improve select dropdown on mobile */
+  [data-radix-select-content] {
+    min-width: 100%;
+  }
+  
+  [data-radix-select-item] {
+    white-space: nowrap;
+    overflow: visible;
   }
 }
 

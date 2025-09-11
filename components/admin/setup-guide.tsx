@@ -21,17 +21,44 @@ export function SetupGuide() {
 
   const checkSetupStatus = async () => {
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       // Check for subjects
-      const { data: subjects } = await supabase.from("subjects").select("id").limit(1)
+      const { data: subjects } = await supabase
+        .from("subjects")
+        .select("id")
+        .eq("school_id", schoolId)
+        .limit(1)
 
       // Check for teachers
-      const { data: teachers } = await supabase.from("users").select("id").eq("role", "teacher").limit(1)
+      const { data: teachers } = await supabase
+        .from("users")
+        .select("id")
+        .eq("role", "teacher")
+        .eq("school_id", schoolId)
+        .limit(1)
 
       // Check for students
-      const { data: students } = await supabase.from("users").select("id").eq("role", "student").limit(1)
+      const { data: students } = await supabase
+        .from("users")
+        .select("id")
+        .eq("role", "student")
+        .eq("school_id", schoolId)
+        .limit(1)
 
       // Check for courses
-      const { data: courses } = await supabase.from("courses").select("id").limit(1)
+      const { data: courses } = await supabase
+        .from("courses")
+        .select("id")
+        .eq("school_id", schoolId)
+        .limit(1)
 
       setSetupStatus({
         hasSubjects: (subjects?.length || 0) > 0,
@@ -48,14 +75,23 @@ export function SetupGuide() {
 
   const createSampleData = async () => {
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       // Create sample subjects
       if (!setupStatus.hasSubjects) {
         await supabase.from("subjects").insert([
-          { name: "Mathematics", code: "MATH", description: "Mathematics and Algebra" },
-          { name: "Science", code: "SCI", description: "General Science" },
-          { name: "English", code: "ENG", description: "English Language and Literature" },
-          { name: "History", code: "HIST", description: "World History" },
-          { name: "Physics", code: "PHYS", description: "Physics and Applied Sciences" },
+          { school_id: schoolId, name: "Mathematics", code: "MATH", description: "Mathematics and Algebra" },
+          { school_id: schoolId, name: "Science", code: "SCI", description: "General Science" },
+          { school_id: schoolId, name: "English", code: "ENG", description: "English Language and Literature" },
+          { school_id: schoolId, name: "History", code: "HIST", description: "World History" },
+          { school_id: schoolId, name: "Physics", code: "PHYS", description: "Physics and Applied Sciences" },
         ])
       }
 

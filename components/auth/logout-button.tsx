@@ -20,12 +20,20 @@ export function LogoutButton({
   const router = useRouter()
 
   const handleLogout = () => {
+    // Extract school slug from current path before clearing session
+    const pathParts = window.location.pathname.split("/")
+    const schoolSlug = pathParts[1]
+    
     // Clear all user data
     localStorage.removeItem("currentUser")
     localStorage.removeItem("hasSeenWelcome")
 
-    // Redirect to home page
-    router.push("/")
+    // Redirect to the school-specific login page
+    if (schoolSlug && schoolSlug !== "auth") {
+      router.push(`/${schoolSlug}/auth/login`)
+    } else {
+      router.push("/school-select")
+    }
   }
 
   return (

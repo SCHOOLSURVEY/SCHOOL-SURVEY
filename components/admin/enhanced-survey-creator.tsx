@@ -82,6 +82,15 @@ export function EnhancedSurveyCreator() {
 
   const fetchData = async () => {
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       // Fetch surveys with course data
       const { data: surveysData, error: surveysError } = await supabase
         .from("surveys")
@@ -93,6 +102,7 @@ export function EnhancedSurveyCreator() {
             subjects!inner(name)
           )
         `)
+        .eq("school_id", schoolId) // Filter by current school
         .order("created_at", { ascending: false })
 
       if (surveysError) throw surveysError
@@ -107,6 +117,7 @@ export function EnhancedSurveyCreator() {
           subjects!inner(name),
           users!inner(full_name)
         `)
+        .eq("school_id", schoolId) // Filter by current school
         .order("name")
 
       if (coursesError) throw coursesError
@@ -122,6 +133,14 @@ export function EnhancedSurveyCreator() {
 
   const createSurvey = async () => {
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       const closesAt = new Date()
       closesAt.setDate(closesAt.getDate() + newSurvey.closes_in_days)
 
@@ -129,6 +148,8 @@ export function EnhancedSurveyCreator() {
         .from("surveys")
         .insert([
           {
+            school_id: schoolId,
+            created_by: currentUser.id,
             title: newSurvey.title,
             description: newSurvey.description,
             course_id: newSurvey.course_id,
@@ -237,6 +258,14 @@ export function EnhancedSurveyCreator() {
 
   const createQuickSurvey = async (courseId: string, courseName: string) => {
     try {
+      // Get current user's school_id and user_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       const closesAt = new Date()
       closesAt.setDate(closesAt.getDate() + 7) // 7 days from now
 
@@ -244,6 +273,8 @@ export function EnhancedSurveyCreator() {
         .from("surveys")
         .insert([
           {
+            school_id: schoolId,
+            created_by: currentUser.id,
             title: `Weekly Feedback - ${courseName}`,
             description: "Please rate your learning experience this week",
             course_id: courseId,

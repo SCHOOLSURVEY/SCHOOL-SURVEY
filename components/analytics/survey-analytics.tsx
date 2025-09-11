@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts"
 import { supabase } from "@/lib/supabase"
 
 interface AnalyticsData {
@@ -23,6 +23,15 @@ export function SurveyAnalytics() {
 
   const fetchAnalytics = async () => {
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       // Fetch survey responses with course and rating data
       const { data: responses, error } = await supabase
         .from("survey_responses")
@@ -39,6 +48,7 @@ export function SurveyAnalytics() {
           survey_questions!inner(question_type)
         `)
         .eq("survey_questions.question_type", "rating")
+        .eq("school_id", schoolId) // Filter by current school
 
       if (error) throw error
 
@@ -115,24 +125,22 @@ export function SurveyAnalytics() {
             }}
             className="h-[200px]"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data.ratingDistribution}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                  label={({ rating, count }) => `${rating}: ${count}`}
-                >
-                  {data.ratingDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChart>
+              <Pie
+                data={data.ratingDistribution}
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="count"
+                label={({ rating, count }) => `${rating}: ${count}`}
+              >
+                {data.ratingDistribution.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <ChartTooltip content={<ChartTooltipContent />} />
+            </PieChart>
           </ChartContainer>
         </CardContent>
       </Card>
@@ -152,15 +160,13 @@ export function SurveyAnalytics() {
             }}
             className="h-[300px]"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.coursePerformance}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="course" />
-                <YAxis domain={[0, 5]} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="average" fill="var(--color-average)" />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChart data={data.coursePerformance}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="course" />
+              <YAxis domain={[0, 5]} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="average" fill="var(--color-average)" />
+            </BarChart>
           </ChartContainer>
         </CardContent>
       </Card>

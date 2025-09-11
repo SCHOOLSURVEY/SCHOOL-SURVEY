@@ -33,7 +33,9 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
   const [loading, setLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isSubmissionsDialogOpen, setIsSubmissionsDialogOpen] = useState(false)
+  const [isGradingDialogOpen, setIsGradingDialogOpen] = useState(false)
   const [selectedAssignment, setSelectedAssignment] = useState<string | null>(null)
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
 
   const [newAssignment, setNewAssignment] = useState({
     title: "",
@@ -43,6 +45,12 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
     points_possible: 100,
     due_date: "",
     is_published: false,
+  })
+
+  const [gradeForm, setGradeForm] = useState({
+    points_earned: "",
+    letter_grade: "",
+    comments: "",
   })
 
   useEffect(() => {
@@ -85,8 +93,17 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
 
   const createAssignment = async () => {
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       const { error } = await supabase.from("assignments").insert([
         {
+          school_id: schoolId,
           ...newAssignment,
           due_date: newAssignment.due_date ? new Date(newAssignment.due_date).toISOString() : null,
         },
@@ -188,16 +205,26 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
 
   const fetchSubmissions = async (assignmentId: string) => {
     try {
+      // Get current user's school_id from localStorage
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+      const schoolId = currentUser.school_id
+
       const { data, error } = await supabase
         .from("submissions")
         .select(`
           *,
-          users!inner(full_name, unique_id)
+          users!submissions_student_id_fkey(full_name, unique_id)
         `)
         .eq("assignment_id", assignmentId)
+        .eq("school_id", schoolId)
         .order("submitted_at", { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error("Error fetching submissions:", error)
+        throw error
+      }
+      
+      console.log("Fetched submissions data:", data)
       setSubmissions(data || [])
       setSelectedAssignment(assignmentId)
       setIsSubmissionsDialogOpen(true)
@@ -211,6 +238,112 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
     return Math.floor(Math.random() * 10) // Placeholder
   }
 
+  const downloadFile = async (fileUrl: string, fileName: string) => {
+    try {
+      // Get the public URL for the file
+      const { data } = supabase.storage
+        .from('submissions')
+        .getPublicUrl(fileUrl)
+      
+      if (data?.publicUrl) {
+        // Create a temporary link and trigger download
+        const link = document.createElement('a')
+        link.href = data.publicUrl
+        link.download = fileName
+        link.target = '_blank'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } else {
+        // Fallback to download method if public URL doesn't work
+        const { data: fileData, error } = await supabase.storage
+          .from('submissions')
+          .download(fileUrl)
+        
+        if (error) {
+          console.error('Download error:', error)
+          if (error.message.includes('Bucket not found')) {
+            alert('File storage is not set up. Please contact your administrator.')
+          } else {
+            alert(`Failed to download file: ${error.message}`)
+          }
+          return
+        }
+        
+        // Create a blob URL and trigger download
+        const url = URL.createObjectURL(fileData)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = fileName
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      }
+    } catch (error) {
+      console.error('Download error:', error)
+      alert('Failed to download file. Please try again.')
+    }
+  }
+
+  const openGradingDialog = (submission: Submission) => {
+    setSelectedSubmission(submission)
+    setGradeForm({
+      points_earned: "",
+      letter_grade: "",
+      comments: "",
+    })
+    setIsGradingDialogOpen(true)
+  }
+
+  const submitGrade = async () => {
+    if (!selectedSubmission || !selectedAssignment) return
+
+    try {
+      // Get current user's school_id from localStorage
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+      const schoolId = currentUser.school_id
+
+      const { error } = await supabase.from("grades").insert({
+        school_id: schoolId,
+        assignment_id: selectedAssignment,
+        student_id: selectedSubmission.student_id,
+        points_earned: parseInt(gradeForm.points_earned) || null,
+        letter_grade: gradeForm.letter_grade || null,
+        comments: gradeForm.comments || null,
+        graded_by: currentUser.id,
+      })
+
+      if (error) {
+        console.error("Error submitting grade:", error)
+        alert("Failed to submit grade. Please try again.")
+        return
+      }
+
+      // Update submission status to graded
+      const { error: updateError } = await supabase
+        .from("submissions")
+        .update({ status: "graded" })
+        .eq("id", selectedSubmission.id)
+
+      if (updateError) {
+        console.error("Error updating submission status:", updateError)
+      }
+
+      alert("Grade submitted successfully!")
+      setIsGradingDialogOpen(false)
+      setSelectedSubmission(null)
+      
+      // Refresh submissions to show updated status
+      if (selectedAssignment) {
+        fetchSubmissions(selectedAssignment)
+      }
+    } catch (error) {
+      console.error("Error submitting grade:", error)
+      alert("Failed to submit grade. Please try again.")
+    }
+  }
+
   if (loading) {
     return <div>Loading assignments...</div>
   }
@@ -219,17 +352,17 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+            <div className="min-w-0 flex-1">
               <CardTitle className="flex items-center space-x-2">
                 <FileText className="h-5 w-5" />
                 <span>Assignment Management</span>
               </CardTitle>
-              <CardDescription>Create and manage assignments for your courses</CardDescription>
+              <CardDescription className="text-sm">Create and manage assignments for your courses</CardDescription>
             </div>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button disabled={courses.length === 0}>
+                <Button disabled={courses.length === 0} className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Assignment
                 </Button>
@@ -240,7 +373,7 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
                   <DialogDescription>Create a new assignment for your students</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="assignment-title">Assignment Title</Label>
                       <Input
@@ -281,7 +414,7 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="type">Type</Label>
                       <Select
@@ -311,7 +444,7 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
                         }
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                       <Label htmlFor="due-date">Due Date</Label>
                       <Input
                         id="due-date"
@@ -351,84 +484,109 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
               <p>No courses assigned. Contact administration to get courses assigned.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Assignment</TableHead>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Points</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Submissions</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {assignments.map((assignment) => (
-                  <TableRow key={assignment.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{assignment.title}</div>
-                        {assignment.description && (
-                          <div className="text-sm text-muted-foreground line-clamp-2">{assignment.description}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {assignment.course?.name} - {assignment.course?.class_number}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {assignment.assignment_type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{assignment.points_possible}</TableCell>
-                    <TableCell>
-                      {assignment.due_date ? (
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{new Date(assignment.due_date).toLocaleDateString()}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">No due date</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={assignment.is_published ? "default" : "secondary"}>
-                        {assignment.is_published ? "Published" : "Draft"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => fetchSubmissions(assignment.id)}>
-                        <Users className="h-4 w-4 mr-1" />
-                        View ({getSubmissionCount(assignment.id)})
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => togglePublished(assignment.id, assignment.is_published)}
-                          className="h-8 w-8 p-0"
-                        >
-                          {assignment.is_published ? <Eye className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteAssignment(assignment.id)}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[200px]">Assignment</TableHead>
+                    <TableHead className="hidden sm:table-cell">Course</TableHead>
+                    <TableHead className="hidden md:table-cell">Type</TableHead>
+                    <TableHead className="hidden lg:table-cell">Points</TableHead>
+                    <TableHead className="hidden xl:table-cell">Due Date</TableHead>
+                    <TableHead className="hidden lg:table-cell">Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Submissions</TableHead>
+                    <TableHead className="min-w-[100px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {assignments.map((assignment) => (
+                    <TableRow key={assignment.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{assignment.title}</div>
+                          {assignment.description && (
+                            <div className="text-sm text-muted-foreground line-clamp-2">{assignment.description}</div>
+                          )}
+                          <div className="sm:hidden mt-2 space-y-1">
+                            <div className="text-xs text-muted-foreground">
+                              {assignment.course?.name} - {assignment.course?.class_number}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline" className="capitalize text-xs">
+                                {assignment.assignment_type}
+                              </Badge>
+                              <span className="text-xs">{assignment.points_possible} pts</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Badge variant={assignment.is_published ? "default" : "secondary"} className="text-xs">
+                                {assignment.is_published ? "Published" : "Draft"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {assignment.course?.name} - {assignment.course?.class_number}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Badge variant="outline" className="capitalize">
+                          {assignment.assignment_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">{assignment.points_possible}</TableCell>
+                      <TableCell className="hidden xl:table-cell">
+                        {assignment.due_date ? (
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-4 w-4" />
+                            <span>{new Date(assignment.due_date).toLocaleDateString()}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No due date</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <Badge variant={assignment.is_published ? "default" : "secondary"}>
+                          {assignment.is_published ? "Published" : "Draft"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Button variant="outline" size="sm" onClick={() => fetchSubmissions(assignment.id)}>
+                          <Users className="h-4 w-4 mr-1" />
+                          View ({getSubmissionCount(assignment.id)})
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => togglePublished(assignment.id, assignment.is_published)}
+                            className="h-8 w-8 p-0"
+                            title={assignment.is_published ? "Unpublish" : "Publish"}
+                          >
+                            {assignment.is_published ? <Eye className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteAssignment(assignment.id)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            title="Delete Assignment"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <div className="md:hidden">
+                            <Button variant="outline" size="sm" onClick={() => fetchSubmissions(assignment.id)}>
+                              <Users className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
           {assignments.length === 0 && courses.length > 0 && (
             <div className="text-center py-8 text-muted-foreground">
@@ -457,12 +615,14 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {submissions.map((submission) => (
+                {submissions.map((submission) => {
+                  console.log("Rendering submission:", submission)
+                  return (
                   <TableRow key={submission.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{submission.student?.full_name}</div>
-                        <div className="text-sm text-muted-foreground">{submission.student?.unique_id}</div>
+                        <div className="font-medium">{submission.users?.full_name || 'Unknown Student'}</div>
+                        <div className="text-sm text-muted-foreground">{submission.users?.unique_id || 'No ID'}</div>
                       </div>
                     </TableCell>
                     <TableCell>{new Date(submission.submitted_at).toLocaleString()}</TableCell>
@@ -472,25 +632,147 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
                     <TableCell>
                       <div className="max-w-xs">
                         {submission.content && <p className="text-sm line-clamp-3">{submission.content}</p>}
-                        {submission.file_url && (
-                          <a href={submission.file_url} className="text-blue-600 hover:underline text-sm">
-                            View File
-                          </a>
-                        )}
+                            {submission.attachments && submission.attachments.length > 0 && (
+                              <div className="mt-1">
+                                {submission.attachments.map((attachment, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => downloadFile(attachment.url, attachment.name)}
+                                    className="text-blue-600 hover:underline text-sm block text-left"
+                                  >
+                                    📎 {attachment.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => openGradingDialog(submission)}
+                      >
                         Grade
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
             {submissions.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">No submissions yet for this assignment.</div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Grading Dialog */}
+      <Dialog open={isGradingDialogOpen} onOpenChange={setIsGradingDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Grade Assignment</DialogTitle>
+            <DialogDescription>
+              Grade the submission for {selectedSubmission?.users?.full_name || 'Student'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Student Info */}
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium mb-2">Student Information</h4>
+              <p><strong>Name:</strong> {selectedSubmission?.users?.full_name || 'Unknown'}</p>
+              <p><strong>ID:</strong> {selectedSubmission?.users?.unique_id || 'Unknown'}</p>
+              <p><strong>Submitted:</strong> {selectedSubmission?.submitted_at ? new Date(selectedSubmission.submitted_at).toLocaleString() : 'Unknown'}</p>
+            </div>
+
+            {/* Submission Content */}
+            {selectedSubmission?.content && (
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium mb-2">Student Response</h4>
+                <p className="text-sm">{selectedSubmission.content}</p>
+              </div>
+            )}
+
+            {/* File Attachments */}
+            {selectedSubmission?.attachments && selectedSubmission.attachments.length > 0 && (
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium mb-2">File Attachments</h4>
+                <div className="space-y-1">
+                  {selectedSubmission.attachments.map((attachment, index) => (
+                    <button
+                      key={index}
+                      onClick={() => downloadFile(attachment.url, attachment.name)}
+                      className="text-blue-600 hover:underline text-sm block"
+                    >
+                      📎 {attachment.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Grading Form */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="points-earned">Points Earned</Label>
+                  <Input
+                    id="points-earned"
+                    type="number"
+                    value={gradeForm.points_earned}
+                    onChange={(e) => setGradeForm(prev => ({ ...prev, points_earned: e.target.value }))}
+                    placeholder="e.g., 85"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="letter-grade">Letter Grade</Label>
+                  <Select
+                    value={gradeForm.letter_grade}
+                    onValueChange={(value) => setGradeForm(prev => ({ ...prev, letter_grade: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A+">A+</SelectItem>
+                      <SelectItem value="A">A</SelectItem>
+                      <SelectItem value="A-">A-</SelectItem>
+                      <SelectItem value="B+">B+</SelectItem>
+                      <SelectItem value="B">B</SelectItem>
+                      <SelectItem value="B-">B-</SelectItem>
+                      <SelectItem value="C+">C+</SelectItem>
+                      <SelectItem value="C">C</SelectItem>
+                      <SelectItem value="C-">C-</SelectItem>
+                      <SelectItem value="D+">D+</SelectItem>
+                      <SelectItem value="D">D</SelectItem>
+                      <SelectItem value="F">F</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="comments">Comments</Label>
+                <Textarea
+                  id="comments"
+                  value={gradeForm.comments}
+                  onChange={(e) => setGradeForm(prev => ({ ...prev, comments: e.target.value }))}
+                  placeholder="Add feedback for the student..."
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsGradingDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={submitGrade}>
+                Submit Grade
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

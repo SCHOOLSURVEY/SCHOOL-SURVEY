@@ -40,10 +40,20 @@ interface Teacher {
   unique_id: string
 }
 
+interface Term {
+  id: string
+  academic_year_id: string
+  name: string
+  start_date: string
+  end_date: string
+  is_current: boolean
+}
+
 export function CoursesManager() {
   const [courses, setCourses] = useState<Course[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [terms, setTerms] = useState<Term[]>([])
   const [loading, setLoading] = useState(true)
   const [newCourse, setNewCourse] = useState({
     name: "",
@@ -51,6 +61,7 @@ export function CoursesManager() {
     teacher_id: "",
     class_number: "",
     term: "",
+    term_id: "",
   })
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
@@ -60,6 +71,15 @@ export function CoursesManager() {
 
   const fetchData = async () => {
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       // Fetch courses with related data
       const { data: coursesData, error: coursesError } = await supabase
         .from("courses")
@@ -68,12 +88,17 @@ export function CoursesManager() {
           subjects!inner(name, code),
           users!inner(full_name, unique_id)
         `)
+        .eq("school_id", schoolId) // Filter by current school
         .order("created_at", { ascending: false })
 
       if (coursesError) throw coursesError
 
       // Fetch subjects for dropdown
-      const { data: subjectsData, error: subjectsError } = await supabase.from("subjects").select("*").order("name")
+      const { data: subjectsData, error: subjectsError } = await supabase
+        .from("subjects")
+        .select("*")
+        .eq("school_id", schoolId) // Filter by current school
+        .order("name")
 
       if (subjectsError) throw subjectsError
 
@@ -82,9 +107,29 @@ export function CoursesManager() {
         .from("users")
         .select("id, full_name, unique_id")
         .eq("role", "teacher")
+        .eq("school_id", schoolId) // Filter by current school
         .order("full_name")
 
       if (teachersError) throw teachersError
+
+      // Fetch terms for dropdown (Nigerian academic system)
+      const { data: termsData, error: termsError } = await supabase
+        .from("terms")
+        .select(`
+          *,
+          academic_years!inner(name, is_current, school_id)
+        `)
+        .eq("academic_years.is_current", true)
+        .eq("academic_years.school_id", schoolId)
+        .order("name", { ascending: true })
+
+      if (termsError) {
+        console.warn("Error fetching terms:", termsError)
+        // Don't throw error, just set empty array
+        setTerms([])
+      } else {
+        setTerms(termsData || [])
+      }
 
       setCourses(coursesData || [])
       setSubjects(subjectsData || [])
@@ -98,24 +143,34 @@ export function CoursesManager() {
 
   const createCourse = async () => {
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       const { error } = await supabase.from("courses").insert([
         {
+          school_id: schoolId,
           name: newCourse.name,
           subject_id: newCourse.subject_id,
           teacher_id: newCourse.teacher_id,
           class_number: newCourse.class_number,
           term: newCourse.term,
+          term_id: newCourse.term_id,
         },
       ])
 
       if (error) throw error
 
-      setNewCourse({ name: "", subject_id: "", teacher_id: "", class_number: "", term: "" })
+      setNewCourse({ name: "", subject_id: "", teacher_id: "", class_number: "", term: "", term_id: "" })
       setIsDialogOpen(false)
       fetchData()
     } catch (error) {
       console.error("Error creating course:", error)
-      alert("Error creating course")
+      alert(`Error creating course: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -131,7 +186,7 @@ export function CoursesManager() {
       fetchData()
     } catch (error) {
       console.error("Error deleting course:", error)
-      alert("Error deleting course")
+      alert(`Error deleting course: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -142,14 +197,14 @@ export function CoursesManager() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+          <div className="min-w-0 flex-1">
             <CardTitle>Courses Management</CardTitle>
-            <CardDescription>Create and manage school courses</CardDescription>
+            <CardDescription className="text-sm">Create and manage school courses</CardDescription>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button disabled={subjects.length === 0 || teachers.length === 0}>
+              <Button disabled={subjects.length === 0 || teachers.length === 0} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Course
               </Button>
@@ -157,7 +212,7 @@ export function CoursesManager() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Course</DialogTitle>
-                <DialogDescription>Assign a teacher to a subject for a specific class and term</DialogDescription>
+                <DialogDescription>Assign a teacher to a subject for a specific class</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -205,7 +260,7 @@ export function CoursesManager() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="class-number">Class</Label>
                     <Input
@@ -217,12 +272,31 @@ export function CoursesManager() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="term">Term</Label>
-                    <Input
-                      id="term"
-                      value={newCourse.term}
-                      onChange={(e) => setNewCourse({ ...newCourse, term: e.target.value })}
-                      placeholder="e.g., Fall 2024"
-                    />
+                    {terms.length === 0 ? (
+                      <div className="p-3 border border-dashed border-gray-300 rounded-md text-center text-sm text-gray-500">
+                        No terms available. Please create terms first.
+                      </div>
+                    ) : (
+                      <Select value={newCourse.term_id} onValueChange={(value) => {
+                        const selectedTerm = terms.find(t => t.id === value)
+                        setNewCourse({ 
+                          ...newCourse, 
+                          term_id: value,
+                          term: selectedTerm?.name || ""
+                        })
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a term" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {terms.map((term) => (
+                            <SelectItem key={term.id} value={term.id}>
+                              {term.name} {term.is_current ? '(Current)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
                 <Button
@@ -233,7 +307,7 @@ export function CoursesManager() {
                     !newCourse.subject_id ||
                     !newCourse.teacher_id ||
                     !newCourse.class_number ||
-                    !newCourse.term
+                    !newCourse.term || !newCourse.term_id
                   }
                 >
                   Create Course
@@ -255,50 +329,67 @@ export function CoursesManager() {
           </div>
         )}
         {subjects.length > 0 && teachers.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Course Name</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Teacher</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Term</TableHead>
-                <TableHead>Students</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {courses.map((course) => (
-                <TableRow key={course.id}>
-                  <TableCell className="font-medium">{course.name}</TableCell>
-                  <TableCell>
-                    {course.subjects.name} ({course.subjects.code})
-                  </TableCell>
-                  <TableCell>
-                    {course.users.full_name} ({course.users.unique_id})
-                  </TableCell>
-                  <TableCell>{course.class_number}</TableCell>
-                  <TableCell>{course.term}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-1">
-                      <Users className="h-4 w-4" />
-                      <span>0</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteCourse(course.id)}
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[200px]">Course Name</TableHead>
+                  <TableHead className="hidden sm:table-cell">Subject</TableHead>
+                  <TableHead className="hidden md:table-cell">Teacher</TableHead>
+                  <TableHead className="hidden lg:table-cell">Class</TableHead>
+                  <TableHead className="hidden xl:table-cell">Term</TableHead>
+                  <TableHead className="hidden md:table-cell">Students</TableHead>
+                  <TableHead className="min-w-[80px]">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {courses.map((course) => (
+                  <TableRow key={course.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{course.name}</div>
+                        <div className="sm:hidden mt-1 space-y-1">
+                          <div className="text-xs text-muted-foreground">
+                            {course.subjects.name} ({course.subjects.code})
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {course.users.full_name} ({course.users.unique_id})
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs">{course.class_number}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {course.subjects.name} ({course.subjects.code})
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {course.users.full_name} ({course.users.unique_id})
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">{course.class_number}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <div className="flex items-center space-x-1">
+                        <Users className="h-4 w-4" />
+                        <span>0</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteCourse(course.id)}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        title="Delete Course"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
         {courses.length === 0 && subjects.length > 0 && teachers.length > 0 && (
           <div className="text-center py-8 text-muted-foreground">

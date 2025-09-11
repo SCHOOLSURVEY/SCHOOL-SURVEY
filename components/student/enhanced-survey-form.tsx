@@ -66,7 +66,16 @@ export function EnhancedSurveyForm({ survey, studentId, onComplete }: EnhancedSu
     setSubmitting(true)
 
     try {
+      // Get current user's school_id
+      const currentUserData = localStorage.getItem("currentUser")
+      if (!currentUserData) {
+        throw new Error("No current user found")
+      }
+      const currentUser = JSON.parse(currentUserData)
+      const schoolId = currentUser.school_id
+
       const responseData = Object.entries(responses).map(([questionId, value]) => ({
+        school_id: schoolId,
         survey_id: survey.id,
         student_id: studentId,
         question_id: questionId,

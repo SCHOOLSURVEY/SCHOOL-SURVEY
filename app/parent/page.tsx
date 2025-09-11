@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { ParentDashboard } from "@/components/parent/parent-dashboard"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { LogoutButton } from "@/components/auth/logout-button"
 import type { User } from "@/lib/types"
 
 export default function ParentPortal() {
@@ -37,7 +36,6 @@ export default function ParentPortal() {
             <p className="text-muted-foreground">Welcome, {currentUser.full_name}</p>
             <p className="text-sm text-muted-foreground">ID: {currentUser.unique_id}</p>
           </div>
-          <LogoutButton variant="destructive" />
         </div>
 
         <ParentDashboard parentId={currentUser.id} />

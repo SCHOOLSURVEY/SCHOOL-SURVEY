@@ -4,15 +4,15 @@ import { useState } from "react"
 import { OnboardingForm } from "@/components/admin/onboarding-form"
 import { UsersTable } from "@/components/admin/users-table"
 import { SurveyAnalytics } from "@/components/analytics/survey-analytics"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/responsive-tabs"
 import { SetupGuide } from "@/components/admin/setup-guide"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { AdminCodesManager } from "@/components/admin/admin-codes-manager"
+import { TeacherCodesManager } from "@/components/admin/teacher-codes-manager"
 import { SubjectsManager } from "@/components/admin/subjects-manager"
 import { CoursesManager } from "@/components/admin/courses-manager"
 import { EnhancedSurveyCreator } from "@/components/admin/enhanced-survey-creator"
 import { StudentEnrollmentManager } from "@/components/admin/student-enrollment-manager"
-import { LogoutButton } from "@/components/auth/logout-button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function AdminDashboard() {
@@ -25,16 +25,15 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout requiredRole="admin">
       <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">School Management Dashboard</h1>
-            <p className="text-muted-foreground">Manage users, courses, and view analytics</p>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold">School Management Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage users, courses, and view analytics</p>
           </div>
-          <LogoutButton variant="destructive" />
         </div>
 
         <Tabs defaultValue="setup" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9">
+          <TabsList className="grid w-full grid-cols-10">
             <TabsTrigger value="setup">Setup</TabsTrigger>
             <TabsTrigger value="subjects">Subjects</TabsTrigger>
             <TabsTrigger value="courses">Courses</TabsTrigger>
@@ -42,7 +41,8 @@ export default function AdminDashboard() {
             <TabsTrigger value="surveys">Surveys</TabsTrigger>
             <TabsTrigger value="onboarding">Users</TabsTrigger>
             <TabsTrigger value="users">Manage</TabsTrigger>
-            <TabsTrigger value="codes">Codes</TabsTrigger>
+            <TabsTrigger value="codes">Admin Codes</TabsTrigger>
+            <TabsTrigger value="teacher-codes">Teacher Codes</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -78,6 +78,10 @@ export default function AdminDashboard() {
             <AdminCodesManager />
           </TabsContent>
 
+          <TabsContent value="teacher-codes">
+            <TeacherCodesManager />
+          </TabsContent>
+
           <TabsContent value="analytics">
             <SurveyAnalytics />
           </TabsContent>
@@ -90,7 +94,7 @@ export default function AdminDashboard() {
             <CardDescription>Common administrative tasks</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-4">
-            <LogoutButton variant="outline" size="sm" />
+            <p className="text-sm text-muted-foreground">Use the profile menu in the header to logout</p>
           </CardContent>
         </Card>
       </div>
