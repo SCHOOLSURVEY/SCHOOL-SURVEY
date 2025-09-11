@@ -85,3 +85,4 @@ CREATE POLICY "Students can mark feedback as read" ON feedback_messages
     FOR UPDATE USING (
         auth.uid() = student_id
     );
+

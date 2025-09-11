@@ -90,7 +90,6 @@ export function StudentAssignmentsList({ studentId }: StudentAssignmentsProps) {
       }
 
       if (!enrollments || enrollments.length === 0) {
-        console.log("No course enrollments found for student")
         setLoading(false)
         return
       }
@@ -128,13 +127,10 @@ export function StudentAssignmentsList({ studentId }: StudentAssignmentsProps) {
         .order("due_date", { ascending: true, nullsLast: true })
 
       if (assignmentsError) {
-        console.error("Error fetching assignments:", assignmentsError)
         setError("Failed to fetch assignments. Please try again.")
         return
       }
 
-      console.log("Raw assignments data:", assignmentsData)
-      console.log("First assignment course data:", assignmentsData?.[0]?.course)
 
       // Format the assignments data to match our interface
       const formattedAssignments =

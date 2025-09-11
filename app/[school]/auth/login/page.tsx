@@ -10,7 +10,6 @@ import { validateAdminCode, validateTeacherCode } from "@/lib/admin-setup"
 import { useToast } from "@/hooks/use-toast"
 import { SessionManager } from "@/lib/session-manager"
 import { useRouter } from "next/navigation"
-import { LocalStorageDebugger } from "@/components/debug/localstorage-debugger"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -118,9 +117,8 @@ export default function SchoolSpecificLoginPage() {
       if (error) throw error
       setSchool(data)
     } catch (error) {
-      console.error("Error fetching school info:", error)
-      // Redirect to main page if school not found
-      router.push("/")
+      // Redirect to school select if school not found
+      router.push("/school-select")
     }
   }
 
@@ -144,19 +142,12 @@ export default function SchoolSpecificLoginPage() {
     setLoading(true)
     setLoginError("") // Clear previous errors
     try {
-      console.log("Attempting student login for:", data.email, "in school:", school.name)
       const result = await authenticate(data.email, data.password)
-      console.log("Authentication result:", result)
-      console.log("Result success:", result.success)
-      console.log("Result error:", result.error)
       
       if (result.success && result.user) {
-        console.log("User found:", result.user)
-        console.log("User school_id:", result.user.school_id, "Expected school_id:", school.id)
         
         // Check if user belongs to this school
         if (result.user.school_id !== school.id) {
-          console.log("School mismatch - access denied")
           toast({
             title: "Access Denied",
             description: "You don't have access to this school's system.",
@@ -165,12 +156,10 @@ export default function SchoolSpecificLoginPage() {
           return
         }
 
-        console.log("Storing user session:", result.user.email, "Role:", result.user.role, "School:", schoolSlug)
         SessionManager.setUser(result.user, schoolSlug)
         
         // Verify the session was stored
         const storedUser = SessionManager.getCurrentUser()
-        console.log("Verification - stored user:", storedUser?.email, "Role:", storedUser?.role)
         
         setSuccessType("login")
         setShowSuccess(true)
@@ -178,11 +167,9 @@ export default function SchoolSpecificLoginPage() {
         // Redirect based on user role
         setTimeout(() => {
           const redirectPath = `/${schoolSlug}/${result.user.role}`
-          console.log("Redirecting to:", redirectPath)
           router.push(redirectPath)
         }, 1500)
       } else {
-        console.log("Login failed:", result.error)
         const errorMessage = result.error || "Invalid email or password."
         setLoginError(errorMessage)
         toast({
@@ -213,24 +200,16 @@ export default function SchoolSpecificLoginPage() {
       let result
       
       if (loginMode === "teacher") {
-        console.log("Attempting teacher login with code:", data.code, "in school:", school.name)
         result = await validateTeacherCode(data.code, school.id)
       } else {
-        console.log("Attempting admin login with code:", data.code, "in school:", school.name)
         result = await validateAdminCode(data.code, school.id)
       }
-      
-      console.log("Code authentication result:", result)
-      console.log("Result success:", result.success)
-      console.log("Result error:", result.error)
 
       if (result.success && result.user) {
-        console.log("Storing user session (code login):", result.user.email, "Role:", result.user.role, "School:", schoolSlug)
         SessionManager.setUser(result.user, schoolSlug)
         
         // Verify the session was stored
         const storedUser = SessionManager.getCurrentUser()
-        console.log("Verification - stored user (code login):", storedUser?.email, "Role:", storedUser?.role)
         
         setSuccessType(loginMode)
         setShowSuccess(true)
@@ -498,10 +477,6 @@ export default function SchoolSpecificLoginPage() {
       {/* Success Animation */}
       <SuccessAnimation isVisible={showSuccess} type={successType} />
 
-      {/* Debug Tools */}
-      <div className="mt-8">
-        <LocalStorageDebugger />
-      </div>
     </div>
   )
 }

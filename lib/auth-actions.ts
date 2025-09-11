@@ -38,7 +38,6 @@ export async function authenticate(email: string, password: string) {
       .single()
 
     if (userError) {
-      console.log("Database error during authentication:", userError)
       return {
         success: false,
         error: "Invalid email or password.",
@@ -54,14 +53,12 @@ export async function authenticate(email: string, password: string) {
 
     // For now, we'll skip password validation since we're bypassing Supabase Auth
     // In production, you'd want to implement proper password hashing and validation
-    console.log("User found in database:", user.email, "Role:", user.role, "School ID:", user.school_id)
 
     return {
       success: true,
       user,
     }
   } catch (error) {
-    console.error("Authentication failed:", error)
     return {
       success: false,
       error: "Authentication failed. Please try again.",
@@ -82,7 +79,6 @@ export async function createUser(userData: CreateUserParams) {
 
     return result
   } catch (error) {
-    console.error("User creation failed:", error)
     return {
       success: false,
       error: "Failed to create user. Please try again.",

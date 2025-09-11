@@ -62,18 +62,15 @@ export default function SchoolSpecificStudentDashboard() {
 
     // Add timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
-      console.error("Student data fetch timed out")
       setLoading(false)
       setRefreshing(false)
     }, 10000) // 10 second timeout
 
     try {
-      console.log("Fetching data for student:", studentId)
 
       // Get current user's school_id for filtering
       const currentUserData = localStorage.getItem("currentUser")
       if (!currentUserData) {
-        console.error("No current user data found")
         setLoading(false)
         setRefreshing(false)
         return
@@ -81,7 +78,6 @@ export default function SchoolSpecificStudentDashboard() {
       
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
-      console.log("School ID:", schoolId)
 
       // First, get courses the student is enrolled in (with necessary joins)
       const { data: enrollments, error: enrollmentError } = await supabase
@@ -101,18 +97,13 @@ export default function SchoolSpecificStudentDashboard() {
         .eq("school_id", schoolId)
 
       if (enrollmentError) {
-        console.error("Enrollment error:", enrollmentError)
         throw enrollmentError
       }
 
-      console.log("Enrollments found:", enrollments)
       setEnrolledCourses(enrollments || [])
 
       const courseIds = enrollments?.map((e) => e.course_id) || []
-      console.log("Course IDs:", courseIds)
-
       if (courseIds.length === 0) {
-        console.log("No course enrollments found")
         setAvailableSurveys([])
         setLoading(false)
         setRefreshing(false)
@@ -136,11 +127,9 @@ export default function SchoolSpecificStudentDashboard() {
         .eq("school_id", schoolId)
 
       if (surveyError) {
-        console.error("Survey error:", surveyError)
         throw surveyError
       }
 
-      console.log("Active surveys found:", surveys)
 
       // Get surveys already completed by this student (filtered by school)
       const { data: responses, error: responseError } = await supabase
@@ -150,19 +139,15 @@ export default function SchoolSpecificStudentDashboard() {
         .eq("school_id", schoolId) // Filter by current school
 
       if (responseError) {
-        console.error("Response error:", responseError)
         throw responseError
       }
 
-      console.log("Completed responses:", responses)
 
       const completedSurveyIds = [...new Set(responses?.map((r) => r.survey_id))] || []
       const pendingSurveys = surveys?.filter((s) => !completedSurveyIds.includes(s.id)) || []
 
-      console.log("Pending surveys:", pendingSurveys)
       setAvailableSurveys(pendingSurveys)
     } catch (error) {
-      console.error("Error fetching student data:", error)
     } finally {
       clearTimeout(timeoutId)
       setLoading(false)

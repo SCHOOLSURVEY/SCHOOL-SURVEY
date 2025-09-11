@@ -129,14 +129,12 @@ export function SurveyIntelligenceDashboard() {
     try {
       const currentUserData = localStorage.getItem("currentUser")
       if (!currentUserData) {
-        console.log("No current user found, waiting for authentication...")
         return // Don't throw error, just return and wait
       }
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
       
       if (!schoolId) {
-        console.log("No school ID found for user, waiting...")
         return
       }
 
@@ -178,7 +176,6 @@ export function SurveyIntelligenceDashboard() {
 
       if (surveysError) throw surveysError
 
-      console.log("Fetched surveys data:", surveysData)
       setSurveys(surveysData || [])
       
       if (surveysData && surveysData.length > 0) {
@@ -193,17 +190,14 @@ export function SurveyIntelligenceDashboard() {
 
   const fetchSurveyData = async (surveyId: string) => {
     try {
-      console.log("Fetching survey data for survey ID:", surveyId)
       
       const currentUserData = localStorage.getItem("currentUser")
       if (!currentUserData) {
-        console.log("No current user found in fetchSurveyData, waiting for authentication...")
         return
       }
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
       
-      console.log("Current user school ID:", schoolId)
 
       // Fetch survey responses with student and question data
       const { data: responsesData, error: responsesError } = await supabase
@@ -228,8 +222,6 @@ export function SurveyIntelligenceDashboard() {
 
       if (responsesError) throw responsesError
 
-      console.log("Survey responses data:", responsesData)
-      console.log("Number of responses found:", responsesData?.length || 0)
 
       setResponses(responsesData || [])
 
@@ -242,8 +234,6 @@ export function SurveyIntelligenceDashboard() {
         return acc
       }, [] as Student[]) || []
 
-      console.log("Unique students found:", uniqueStudents)
-      console.log("Number of unique students:", uniqueStudents.length)
 
       setStudents(uniqueStudents)
 

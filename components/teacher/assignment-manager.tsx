@@ -220,11 +220,9 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
         .order("submitted_at", { ascending: false })
 
       if (error) {
-        console.error("Error fetching submissions:", error)
         throw error
       }
       
-      console.log("Fetched submissions data:", data)
       setSubmissions(data || [])
       setSelectedAssignment(assignmentId)
       setIsSubmissionsDialogOpen(true)
@@ -616,7 +614,6 @@ export function AssignmentManager({ teacherId }: AssignmentManagerProps) {
               </TableHeader>
               <TableBody>
                 {submissions.map((submission) => {
-                  console.log("Rendering submission:", submission)
                   return (
                   <TableRow key={submission.id}>
                     <TableCell>

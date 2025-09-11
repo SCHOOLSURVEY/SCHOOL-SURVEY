@@ -121,13 +121,11 @@ export function StreamlinedLoginForm({ className }: { className?: string }) {
     setMessage("")
 
     try {
-      console.log("Attempting student login with:", { email: values.email })
 
       const result = await authenticate({
         email: values.email,
       })
 
-      console.log("Login result:", result)
 
       if (!result?.success) {
         setMessage(result?.error ?? "Invalid email or password.")
@@ -174,7 +172,6 @@ export function StreamlinedLoginForm({ className }: { className?: string }) {
     setMessage("")
 
     try {
-      console.log("Attempting code login with:", { code: values.code, mode })
 
       let result
       if (mode === "admin") {

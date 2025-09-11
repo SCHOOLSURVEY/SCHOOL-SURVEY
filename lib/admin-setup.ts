@@ -260,20 +260,16 @@ export async function validateAdminCode(adminCode: string, schoolId?: string) {
     const { data: admin, error } = await query.single()
 
     if (error || !admin) {
-      console.log("Admin code validation failed:", { adminCode, schoolId, error })
       return {
         success: false,
         error: "Invalid admin code.",
       }
     }
-
-    console.log("Admin code validation successful:", admin.email, "Role:", admin.role, "School ID:", admin.school_id)
     return {
       success: true,
       user: admin,
     }
   } catch (error) {
-    console.error("Error validating admin code:", error)
     return {
       success: false,
       error: "Failed to validate admin code. Please try again.",
@@ -299,20 +295,16 @@ export async function validateTeacherCode(teacherCode: string, schoolId?: string
     const { data: teacher, error } = await query.single()
 
     if (error || !teacher) {
-      console.log("Teacher code validation failed:", { teacherCode, schoolId, error })
       return {
         success: false,
         error: "Invalid teacher code.",
       }
     }
-
-    console.log("Teacher code validation successful:", teacher.email, "Role:", teacher.role, "School ID:", teacher.school_id)
     return {
       success: true,
       user: teacher,
     }
   } catch (error) {
-    console.error("Error validating teacher code:", error)
     return {
       success: false,
       error: "Failed to validate teacher code. Please try again.",

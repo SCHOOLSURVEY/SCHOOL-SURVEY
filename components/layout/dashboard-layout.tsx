@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertTriangle, LogOut } from "lucide-react"
 import type { User } from "@/lib/types"
-import { UserContextDebugger } from "@/components/debug/user-context-debugger"
 import { SessionManager } from "@/lib/session-manager"
 
 interface DashboardLayoutProps {
@@ -31,23 +30,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, requ
     
     // Use SessionManager to get and validate user
     const user = SessionManager.getCurrentUser()
-    console.log("DashboardLayout: Current user:", user?.email, "Role:", user?.role)
-    console.log("DashboardLayout: Current path:", window.location.pathname)
-    console.log("DashboardLayout: Required role:", requiredRole)
     
     if (user) {
       // Validate session against current URL
       const validation = SessionManager.validateSession(window.location.pathname)
-      console.log("DashboardLayout: Session validation result:", validation)
       
       if (!validation.isValid) {
         // Check if it's a role mismatch (user exists but wrong role)
         if (validation.error?.includes("Role mismatch")) {
-          console.log("Role mismatch detected, will redirect to correct dashboard")
           setCurrentUser(user) // Keep the user, just redirect them
         } else {
           // Other validation failures (no user, expired session, etc.)
-          console.error("Session validation failed:", validation.error)
           SessionManager.clearSession()
           setCurrentUser(null)
           setShouldRedirect(true)
@@ -162,7 +155,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, requ
       <main className="container mx-auto p-4 sm:p-6 max-w-7xl">
         <Breadcrumb />
         <div className="space-y-6 sm:space-y-8">
-          <UserContextDebugger />
           {children}
         </div>
       </main>

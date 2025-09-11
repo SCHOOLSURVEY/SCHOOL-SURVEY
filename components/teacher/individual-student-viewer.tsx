@@ -86,7 +86,6 @@ export function IndividualStudentViewer({ studentId, surveyId, onClose }: Indivi
 
   const fetchStudentData = async () => {
     try {
-      console.log("Fetching student data for:", { studentId, surveyId })
       
       const currentUserData = localStorage.getItem("currentUser")
       if (!currentUserData) {
@@ -95,7 +94,6 @@ export function IndividualStudentViewer({ studentId, surveyId, onClose }: Indivi
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
       
-      console.log("Current user school ID:", schoolId)
 
       // Fetch student details
       const { data: studentData, error: studentError } = await supabase
@@ -105,10 +103,8 @@ export function IndividualStudentViewer({ studentId, surveyId, onClose }: Indivi
         .eq("school_id", schoolId)
         .single()
 
-      console.log("Student data result:", { studentData, studentError })
       
       if (studentError) {
-        console.error("Student fetch error:", studentError)
         throw studentError
       }
       setStudent(studentData)
@@ -130,16 +126,8 @@ export function IndividualStudentViewer({ studentId, surveyId, onClose }: Indivi
         .eq("survey_id", surveyId)
         .eq("school_id", schoolId)
 
-      console.log("Responses data result:", { responsesData, responsesError })
       
       if (responsesError) {
-        console.error("Responses fetch error:", responsesError)
-        console.error("Error details:", {
-          message: responsesError.message,
-          details: responsesError.details,
-          hint: responsesError.hint,
-          code: responsesError.code
-        })
         throw responsesError
       }
       setResponses(responsesData || [])
@@ -672,16 +660,6 @@ export function IndividualStudentViewer({ studentId, surveyId, onClose }: Indivi
                   }
                   const currentUser = JSON.parse(currentUserData)
                   
-                  console.log("Attempting to schedule meeting with data:", {
-                    school_id: currentUser.school_id,
-                    teacher_id: currentUser.id,
-                    student_id: studentId,
-                    survey_id: surveyId,
-                    title: `One-on-One Meeting with ${student?.full_name}`,
-                    description: "Discuss survey responses and provide additional support",
-                    meeting_type: "one_on_one",
-                    status: "scheduled"
-                  })
                   
                   const { data, error } = await supabase
                     .from("scheduled_meetings")
@@ -707,12 +685,10 @@ export function IndividualStudentViewer({ studentId, surveyId, onClose }: Indivi
                     })
                     alert(`Failed to schedule meeting: ${error.message}`)
                   } else {
-                    console.log("Meeting scheduled successfully:", data)
                     alert(`Meeting scheduled with ${student?.full_name}! They will see it in their dashboard.`)
                     handleCloseScheduleModal()
                   }
                 } catch (error) {
-                  console.error("Unexpected error:", error)
                   alert("An unexpected error occurred. Please try again.")
                 }
               }}>

@@ -131,3 +131,4 @@ export function TeacherCodeDisplay({ user }: TeacherCodeDisplayProps) {
     </Card>
   )
 }
+

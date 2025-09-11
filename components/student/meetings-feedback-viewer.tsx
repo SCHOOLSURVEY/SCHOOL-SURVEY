@@ -53,7 +53,6 @@ export function MeetingsFeedbackViewer({ studentId }: MeetingsFeedbackViewerProp
 
   const fetchData = async () => {
     try {
-      console.log("MeetingsFeedbackViewer: Starting to fetch data for student:", studentId)
       
       const currentUserData = localStorage.getItem("currentUser")
       if (!currentUserData) {
@@ -62,7 +61,6 @@ export function MeetingsFeedbackViewer({ studentId }: MeetingsFeedbackViewerProp
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
       
-      console.log("MeetingsFeedbackViewer: School ID:", schoolId)
 
       // Fetch scheduled meetings
       const { data: meetingsData, error: meetingsError } = await supabase
@@ -73,9 +71,7 @@ export function MeetingsFeedbackViewer({ studentId }: MeetingsFeedbackViewerProp
         .order("created_at", { ascending: false })
 
       if (meetingsError) {
-        console.error("Error fetching meetings:", meetingsError)
       } else {
-        console.log("MeetingsFeedbackViewer: Meetings data:", meetingsData)
         setMeetings(meetingsData || [])
       }
 
@@ -88,13 +84,10 @@ export function MeetingsFeedbackViewer({ studentId }: MeetingsFeedbackViewerProp
         .order("created_at", { ascending: false })
 
       if (feedbackError) {
-        console.error("Error fetching feedback:", feedbackError)
       } else {
-        console.log("MeetingsFeedbackViewer: Feedback data:", feedbackData)
         setFeedback(feedbackData || [])
       }
     } catch (error) {
-      console.error("Error fetching data:", error)
     } finally {
       setLoading(false)
     }
