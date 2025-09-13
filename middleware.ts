@@ -6,7 +6,7 @@ export function middleware(request: NextRequest) {
 
   // Handle root path redirect
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/tech-academy/auth/login', request.url))
+    return NextResponse.redirect(new URL('/school-select', request.url))
   }
 
   // Allow all other requests to proceed
