@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { StudentAssignmentsList } from "@/components/student/assignments-list"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"

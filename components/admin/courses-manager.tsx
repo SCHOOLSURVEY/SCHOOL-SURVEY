@@ -15,11 +15,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Plus, Trash2, Users } from "lucide-react"
 
 interface Course {
-  id: string
+  _id: string
   name: string
   class_number: string
   term: string
@@ -29,19 +29,19 @@ interface Course {
 }
 
 interface Subject {
-  id: string
+  _id: string
   name: string
   code: string
 }
 
 interface Teacher {
-  id: string
+  _id: string
   full_name: string
   unique_id: string
 }
 
 interface Term {
-  id: string
+  _id: string
   academic_year_id: string
   name: string
   start_date: string
@@ -80,60 +80,18 @@ export function CoursesManager() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      // Fetch courses with related data
-      const { data: coursesData, error: coursesError } = await supabase
-        .from("courses")
-        .select(`
-          *,
-          subjects!inner(name, code),
-          users!inner(full_name, unique_id)
-        `)
-        .eq("school_id", schoolId) // Filter by current school
-        .order("created_at", { ascending: false })
-
-      if (coursesError) throw coursesError
-
-      // Fetch subjects for dropdown
-      const { data: subjectsData, error: subjectsError } = await supabase
-        .from("subjects")
-        .select("*")
-        .eq("school_id", schoolId) // Filter by current school
-        .order("name")
-
-      if (subjectsError) throw subjectsError
-
-      // Fetch teachers for dropdown
-      const { data: teachersData, error: teachersError } = await supabase
-        .from("users")
-        .select("id, full_name, unique_id")
-        .eq("role", "teacher")
-        .eq("school_id", schoolId) // Filter by current school
-        .order("full_name")
-
-      if (teachersError) throw teachersError
-
-      // Fetch terms for dropdown (Nigerian academic system)
-      const { data: termsData, error: termsError } = await supabase
-        .from("terms")
-        .select(`
-          *,
-          academic_years!inner(name, is_current, school_id)
-        `)
-        .eq("academic_years.is_current", true)
-        .eq("academic_years.school_id", schoolId)
-        .order("name", { ascending: true })
-
-      if (termsError) {
-        console.warn("Error fetching terms:", termsError)
-        // Don't throw error, just set empty array
-        setTerms([])
-      } else {
-        setTerms(termsData || [])
-      }
+      // Fetch courses, subjects, teachers, and terms using MongoDB
+      const [coursesData, subjectsData, teachersData, termsData] = await Promise.all([
+        DatabaseService.getCoursesBySchool(schoolId),
+        DatabaseService.getSubjectsBySchool(schoolId),
+        DatabaseService.getUsersByRole(schoolId, "teacher"),
+        DatabaseService.getTermsBySchool(schoolId)
+      ])
 
       setCourses(coursesData || [])
       setSubjects(subjectsData || [])
       setTeachers(teachersData || [])
+      setTerms(termsData || [])
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
@@ -151,19 +109,15 @@ export function CoursesManager() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      const { error } = await supabase.from("courses").insert([
-        {
-          school_id: schoolId,
-          name: newCourse.name,
-          subject_id: newCourse.subject_id,
-          teacher_id: newCourse.teacher_id,
-          class_number: newCourse.class_number,
-          term: newCourse.term,
-          term_id: newCourse.term_id,
-        },
-      ])
-
-      if (error) throw error
+      await DatabaseService.createCourse({
+        school_id: schoolId,
+        name: newCourse.name,
+        subject_id: newCourse.subject_id,
+        teacher_id: newCourse.teacher_id,
+        class_number: newCourse.class_number,
+        term: newCourse.term,
+        term_id: newCourse.term_id,
+      })
 
       setNewCourse({ name: "", subject_id: "", teacher_id: "", class_number: "", term: "", term_id: "" })
       setIsDialogOpen(false)
@@ -180,9 +134,7 @@ export function CoursesManager() {
     }
 
     try {
-      const { error } = await supabase.from("courses").delete().eq("id", courseId)
-
-      if (error) throw error
+      await DatabaseService.deleteCourse(courseId)
       fetchData()
     } catch (error) {
       console.error("Error deleting course:", error)

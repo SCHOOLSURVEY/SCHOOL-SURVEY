@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import {
   Users,
   BookOpen,

@@ -15,10 +15,10 @@ import { CoursesManager } from "@/components/admin/courses-manager"
 import { EnhancedSurveyCreator } from "@/components/admin/enhanced-survey-creator"
 import { StudentEnrollmentManager } from "@/components/admin/student-enrollment-manager"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 
 interface School {
-  id: string
+  _id: string
   name: string
   slug: string
   abbreviation: string
@@ -42,15 +42,14 @@ export default function SchoolSpecificAdminDashboard() {
 
   const fetchSchoolInfo = async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, slug, abbreviation, primary_color, secondary_color, logo_url")
-        .eq("slug", schoolSlug)
-        .eq("is_active", true)
-        .single()
-
-      if (error) throw error
-      setSchool(data)
+      const schools = await DatabaseService.getAllSchools()
+      const school = schools.find(s => s.slug === schoolSlug && s.is_active)
+      
+      if (!school) {
+        console.error("School not found for slug:", schoolSlug)
+        return
+      }
+      setSchool(school)
     } catch (error) {
       console.error("Error fetching school info:", error)
     } finally {

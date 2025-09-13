@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { createAdminUser, getAllAdmins } from "@/lib/admin-setup"
+import { createAdminUser, getAllAdmins } from "@/lib/admin-setup-client"
 import { Plus, Copy, Eye, EyeOff, Shield, AlertCircle, CheckCircle2 } from "lucide-react"
 
 interface Admin {

@@ -16,8 +16,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase"
-import { generateAdminCode, createAdminUser } from "@/lib/admin-setup"
+import { generateAdminCode } from "@/lib/admin-setup-client"
+import { DatabaseService } from "@/lib/database-client"
 import { Plus, Building2, Users, Key, Eye, EyeOff, Copy, RefreshCw } from "lucide-react"
 import type { School, User } from "@/lib/types"
 
@@ -68,41 +68,33 @@ export function SchoolManagement() {
 
   const fetchSchools = async () => {
     try {
-      // Fetch schools with user counts
-      const { data: schoolsData, error: schoolsError } = await supabase
-        .from("schools")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-
-      if (schoolsError) throw schoolsError
+      setLoading(true)
+      const schools = await DatabaseService.getAllSchools()
 
       // Get user counts for each school
       const schoolsWithStats = await Promise.all(
-        (schoolsData || []).map(async (school) => {
-          const [adminCount, teacherCount, studentCount] = await Promise.all([
-            supabase
-              .from("users")
-              .select("id", { count: "exact" })
-              .eq("school_id", school.id)
-              .eq("role", "admin"),
-            supabase
-              .from("users")
-              .select("id", { count: "exact" })
-              .eq("school_id", school.id)
-              .eq("role", "teacher"),
-            supabase
-              .from("users")
-              .select("id", { count: "exact" })
-              .eq("school_id", school.id)
-              .eq("role", "student")
-          ])
+        schools.map(async (school: School) => {
+          try {
+            const [admins, teachers, students] = await Promise.all([
+              DatabaseService.getUsersByRole(school._id, 'admin'),
+              DatabaseService.getUsersByRole(school._id, 'teacher'),
+              DatabaseService.getUsersByRole(school._id, 'student')
+            ])
 
           return {
             ...school,
-            admin_count: adminCount.count || 0,
-            teacher_count: teacherCount.count || 0,
-            student_count: studentCount.count || 0
+              admin_count: admins?.length || 0,
+              teacher_count: teachers?.length || 0,
+              student_count: students?.length || 0,
+            }
+          } catch (error) {
+            console.error(`Error fetching stats for school ${school._id}:`, error)
+            return {
+              ...school,
+              admin_count: 0,
+              teacher_count: 0,
+              student_count: 0,
+            }
           }
         })
       )
@@ -117,36 +109,21 @@ export function SchoolManagement() {
   }
 
   const createSchool = async () => {
-    if (!newSchool.name || !newSchool.slug) {
-      setMessage({ type: "error", text: "Please fill in required fields" })
-      return
-    }
-
-    setCreating(true)
-    setMessage(null)
-
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .insert({
-          name: newSchool.name.trim(),
-          slug: newSchool.slug.trim().toLowerCase().replace(/\s+/g, '-'),
-          abbreviation: newSchool.abbreviation.trim() || null,
-          description: newSchool.description.trim() || null,
-          address: newSchool.address.trim() || null,
-          phone: newSchool.phone.trim() || null,
-          email: newSchool.email.trim() || null,
-          website: newSchool.website.trim() || null,
-          primary_color: newSchool.primary_color,
-          secondary_color: newSchool.secondary_color,
-          logo_url: newSchool.logo_url.trim() || null,
-          custom_domain: newSchool.custom_domain.trim() || null,
-          is_active: true
-        })
-        .select()
-        .single()
+      setCreating(true)
+      
+      // Generate slug from name if not provided
+      const slug = newSchool.slug || newSchool.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      
+      const schoolData = {
+        ...newSchool,
+        slug,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
 
-      if (error) throw error
+      await DatabaseService.createSchool(schoolData)
 
       setMessage({ type: "success", text: "School created successfully!" })
       setNewSchool({
@@ -158,10 +135,6 @@ export function SchoolManagement() {
         phone: "",
         email: "",
         website: "",
-        primary_color: "#3B82F6",
-        secondary_color: "#1E40AF",
-        logo_url: "",
-        custom_domain: ""
       })
       setIsCreateSchoolDialogOpen(false)
       fetchSchools()
@@ -174,32 +147,41 @@ export function SchoolManagement() {
   }
 
   const createAdminForSchool = async () => {
-    if (!selectedSchool || !newAdmin.email || !newAdmin.full_name) {
-      setMessage({ type: "error", text: "Please fill in all required fields" })
-      return
-    }
-
-    setCreating(true)
-    setMessage(null)
-
     try {
-      const result = await createAdminUser({
-        ...newAdmin,
-        school_id: selectedSchool.id
-      })
+      setCreating(true)
+      
+      if (!selectedSchool) {
+        throw new Error("No school selected")
+      }
 
-      if (result.success) {
-        setMessage({ type: "success", text: result.message || "Admin created successfully!" })
-        setNewAdmin({ email: "", full_name: "", class_number: "" })
+      const adminCode = generateAdminCode(selectedSchool._id)
+      
+      const adminData = {
+        school_id: selectedSchool._id,
+        unique_id: `ADMIN${Date.now()}`,
+        email: newAdmin.email,
+        full_name: newAdmin.full_name,
+        role: "admin",
+        admin_code: adminCode,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+
+      await DatabaseService.createUser(adminData)
+
+      setMessage({ type: "success", text: `Admin created! Admin Code: ${adminCode}` })
+      setNewAdmin({
+        full_name: "",
+        email: "",
+        class_number: "",
+      })
         setIsCreateAdminDialogOpen(false)
         setSelectedSchool(null)
         fetchSchools()
-      } else {
-        setMessage({ type: "error", text: result.error || "Failed to create admin" })
-      }
     } catch (error) {
       console.error("Error creating admin:", error)
-      setMessage({ type: "error", text: "Failed to create admin user" })
+      setMessage({ type: "error", text: "Failed to create admin" })
     } finally {
       setCreating(false)
     }
@@ -466,7 +448,7 @@ export function SchoolManagement() {
                 </TableHeader>
                 <TableBody>
                   {schools.map((school) => (
-                    <TableRow key={school.id}>
+                    <TableRow key={school._id}>
                       <TableCell>
                         <div>
                           <div className="font-medium">{school.name}</div>

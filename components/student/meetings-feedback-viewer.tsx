@@ -13,7 +13,7 @@ import {
   AlertCircle,
   User
 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 
 interface ScheduledMeeting {
   id: string

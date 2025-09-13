@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Plus, Edit, Trash2, Eye, Calendar, FileText, Users } from "lucide-react"
 import type { Assignment, Course, Submission } from "@/lib/types"
 

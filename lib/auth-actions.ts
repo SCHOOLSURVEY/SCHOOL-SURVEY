@@ -1,6 +1,6 @@
 "use server"
 
-import { createUser as createUserFlow } from "@/lib/auth-flow"
+import { authenticate as mongoAuthenticate, createUser as mongoCreateUser, CreateUserParams } from "./auth-mongodb"
 
 interface AuthenticateParams {
   email: string
@@ -17,66 +17,28 @@ interface CreateUserParams {
 }
 
 export async function authenticate(email: string, password: string) {
-  try {
-    // Import supabase client
-    const { createClient } = await import("@supabase/supabase-js")
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kpuauqntarndcyeqzmxi.supabase.co"
-    const supabaseKey =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdWF1cW50YXJuZGN5ZXF6bXhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyMTAwMzMsImV4cCI6MjA2Mzc4NjAzM30.t9HtaJAFz0NaMxVDurhpEweNO-gy85KG0R4zSkFVoBU"
-
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    // For now, let's bypass Supabase Auth and just validate against our users table
-    // This avoids the email verification issue
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", email)
-      .eq("is_active", true)
-      .single()
-
-    if (userError) {
-      return {
-        success: false,
-        error: "Invalid email or password.",
-      }
-    }
-
-    if (!user) {
-      return {
-        success: false,
-        error: "Invalid email or password.",
-      }
-    }
-
-    // For now, we'll skip password validation since we're bypassing Supabase Auth
-    // In production, you'd want to implement proper password hashing and validation
-
-    return {
-      success: true,
-      user,
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: "Authentication failed. Please try again.",
-    }
-  }
+  return await mongoAuthenticate(email, password)
 }
 
 export async function createUser(userData: CreateUserParams) {
   try {
-    const result = await createUserFlow({
+    // For now, we'll need to get the school_id from context
+    // This should be passed from the component that calls this function
+    const schoolId = "tech-academy" // This should come from the school context
+    
+    const mongoUserData = {
+      school_id: schoolId,
+      unique_id: `${userData.role.toUpperCase()}${Date.now()}`,
       email: userData.email,
       full_name: userData.full_name,
       role: userData.role,
-      class_number: userData.class_number || null, // Keep as string, don't convert to number
-      parent_email: userData.parent_email || null,
-      parent_phone: userData.parent_phone || null,
-    })
+      class_number: userData.class_number,
+      parent_email: userData.parent_email,
+      parent_phone: userData.parent_phone,
+      password: "defaultPassword123" // This should be generated or provided
+    }
 
+    const result = await mongoCreateUser(mongoUserData)
     return result
   } catch (error) {
     return {

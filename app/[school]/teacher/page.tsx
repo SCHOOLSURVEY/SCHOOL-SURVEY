@@ -11,7 +11,7 @@ import { AssignmentManager } from "@/components/teacher/assignment-manager"
 import { AttendanceManager } from "@/components/teacher/attendance-manager"
 import { TeacherCodeDisplay } from "@/components/teacher/teacher-code-display"
 import { SurveyIntelligenceDashboard } from "@/components/teacher/survey-intelligence-dashboard"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import type { Course, User, School } from "@/lib/types"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { BookOpen, Users, FileText, BarChart3, Calendar } from "lucide-react"
@@ -44,15 +44,14 @@ export default function SchoolSpecificTeacherDashboard() {
 
   const fetchSchoolInfo = async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, slug, abbreviation, primary_color, secondary_color, logo_url")
-        .eq("slug", schoolSlug)
-        .eq("is_active", true)
-        .single()
-
-      if (error) throw error
-      setSchool(data)
+      const schools = await DatabaseService.getAllSchools()
+      const school = schools.find(s => s.slug === schoolSlug && s.is_active)
+      
+      if (!school) {
+        console.error("School not found for slug:", schoolSlug)
+        return
+      }
+      setSchool(school)
     } catch (error) {
       console.error("Error fetching school info:", error)
     }

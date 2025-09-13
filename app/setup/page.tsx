@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Shield, Lock, AlertTriangle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -68,9 +69,8 @@ export default function SetupPage() {
             <form onSubmit={handleAuthenticate} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="setup-password">Setup Password</Label>
-                <Input
+                <PasswordInput
                   id="setup-password"
-                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter setup password"

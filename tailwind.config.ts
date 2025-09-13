@@ -60,7 +60,15 @@ const config: Config = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+  			},
+			// Custom SchoolSurvey colors
+			'emerald-green': '#2ECC71',
+			'royal-blue': '#1E88E5',
+			'vibrant-orange': '#FB8C00',
+			'pure-white': '#FFFFFF',
+			'very-light-gray': '#FAFAFA',
+			'light-gray': '#E0E0E0',
+			'almost-black': '#212121'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

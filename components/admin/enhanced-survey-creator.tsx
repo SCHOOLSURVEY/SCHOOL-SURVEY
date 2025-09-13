@@ -18,11 +18,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Plus, Trash2, Eye, Play, Pause } from "lucide-react"
 
 interface Survey {
-  id: string
+  _id: string
   title: string
   description: string
   survey_type: string
@@ -37,7 +37,7 @@ interface Survey {
 }
 
 interface Course {
-  id: string
+  _id: string
   name: string
   class_number: string
   subjects: { name: string }
@@ -45,7 +45,7 @@ interface Course {
 }
 
 interface SurveyQuestion {
-  id: string
+  _id: string
   question_text: string
   question_type: string
   options: any
@@ -91,36 +91,11 @@ export function EnhancedSurveyCreator() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      // Fetch surveys with course data
-      const { data: surveysData, error: surveysError } = await supabase
-        .from("surveys")
-        .select(`
-          *,
-          courses!inner(
-            name,
-            class_number,
-            subjects!inner(name)
-          )
-        `)
-        .eq("school_id", schoolId) // Filter by current school
-        .order("created_at", { ascending: false })
-
-      if (surveysError) throw surveysError
-
-      // Fetch courses for dropdown
-      const { data: coursesData, error: coursesError } = await supabase
-        .from("courses")
-        .select(`
-          id,
-          name,
-          class_number,
-          subjects!inner(name),
-          users!inner(full_name)
-        `)
-        .eq("school_id", schoolId) // Filter by current school
-        .order("name")
-
-      if (coursesError) throw coursesError
+      // Fetch surveys and courses using MongoDB
+      const [surveysData, coursesData] = await Promise.all([
+        DatabaseService.getSurveysBySchool(schoolId),
+        DatabaseService.getCoursesBySchool(schoolId)
+      ])
 
       setSurveys(surveysData || [])
       setCourses(coursesData || [])
@@ -144,31 +119,20 @@ export function EnhancedSurveyCreator() {
       const closesAt = new Date()
       closesAt.setDate(closesAt.getDate() + newSurvey.closes_in_days)
 
-      const { data: survey, error } = await supabase
-        .from("surveys")
-        .insert([
-          {
-            school_id: schoolId,
-            created_by: currentUser.id,
-            title: newSurvey.title,
-            description: newSurvey.description,
-            course_id: newSurvey.course_id,
-            survey_type: newSurvey.survey_type,
-            status: newSurvey.auto_activate ? "active" : "draft",
-            closes_at: closesAt.toISOString(),
-          },
-        ])
-        .select()
-        .single()
-
-      if (error) throw error
+      const survey = await DatabaseService.createSurvey({
+        school_id: schoolId,
+        created_by: currentUser._id,
+        title: newSurvey.title,
+        description: newSurvey.description,
+        course_id: newSurvey.course_id,
+        survey_type: newSurvey.survey_type,
+        status: newSurvey.auto_activate ? "active" : "draft",
+        closes_at: closesAt.toISOString(),
+      })
 
       // Add comprehensive default questions
-      const defaultQuestions = getComprehensiveQuestions(survey.id, newSurvey.survey_type)
-
-      const { error: questionsError } = await supabase.from("survey_questions").insert(defaultQuestions)
-
-      if (questionsError) throw questionsError
+      const defaultQuestions = getComprehensiveQuestions(survey._id, newSurvey.survey_type)
+      await DatabaseService.createSurveyQuestions(defaultQuestions)
 
       setNewSurvey({
         title: "",
@@ -269,29 +233,21 @@ export function EnhancedSurveyCreator() {
       const closesAt = new Date()
       closesAt.setDate(closesAt.getDate() + 7) // 7 days from now
 
-      const { data: survey, error } = await supabase
-        .from("surveys")
-        .insert([
-          {
-            school_id: schoolId,
-            created_by: currentUser.id,
-            title: `Weekly Feedback - ${courseName}`,
-            description: "Please rate your learning experience this week",
-            course_id: courseId,
-            survey_type: "weekly",
-            status: "active",
-            closes_at: closesAt.toISOString(),
-          },
-        ])
-        .select()
-        .single()
-
-      if (error) throw error
+      const survey = await DatabaseService.createSurvey({
+        school_id: schoolId,
+        created_by: currentUser._id,
+        title: `Weekly Feedback - ${courseName}`,
+        description: "Please rate your learning experience this week",
+        course_id: courseId,
+        survey_type: "weekly",
+        status: "active",
+        closes_at: closesAt.toISOString(),
+      })
 
       // Add quick questions
       const quickQuestions = [
         {
-          survey_id: survey.id,
+          survey_id: survey._id,
           question_text: "How well did you understand this week's material?",
           question_type: "rating",
           order_number: 1,
@@ -310,9 +266,7 @@ export function EnhancedSurveyCreator() {
         },
       ]
 
-      const { error: questionsError } = await supabase.from("survey_questions").insert(quickQuestions)
-
-      if (questionsError) throw questionsError
+      await DatabaseService.createSurveyQuestions(quickQuestions)
 
       fetchData()
       alert("Quick survey created and activated!")
@@ -324,13 +278,7 @@ export function EnhancedSurveyCreator() {
 
   const fetchQuestions = async (surveyId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("survey_questions")
-        .select("*")
-        .eq("survey_id", surveyId)
-        .order("order_number")
-
-      if (error) throw error
+      const data = await DatabaseService.getSurveyQuestions(surveyId)
       setQuestions(data || [])
       setSelectedSurvey(surveyId)
       setIsQuestionsDialogOpen(true)
@@ -343,17 +291,13 @@ export function EnhancedSurveyCreator() {
     if (!selectedSurvey || !newQuestion.question_text) return
 
     try {
-      const { error } = await supabase.from("survey_questions").insert([
-        {
-          survey_id: selectedSurvey,
-          question_text: newQuestion.question_text,
-          question_type: newQuestion.question_type,
-          options: newQuestion.question_type === "multiple_choice" ? JSON.stringify(newQuestion.options) : null,
-          order_number: questions.length + 1,
-        },
-      ])
-
-      if (error) throw error
+      await DatabaseService.createSurveyQuestions([{
+        survey_id: selectedSurvey,
+        question_text: newQuestion.question_text,
+        question_type: newQuestion.question_type,
+        options: newQuestion.question_type === "multiple_choice" ? JSON.stringify(newQuestion.options) : null,
+        order_number: questions.length + 1,
+      }])
 
       setNewQuestion({
         question_text: "",
@@ -370,9 +314,7 @@ export function EnhancedSurveyCreator() {
     if (!confirm("Are you sure you want to delete this question?")) return
 
     try {
-      const { error } = await supabase.from("survey_questions").delete().eq("id", questionId)
-
-      if (error) throw error
+      await DatabaseService.deleteSurveyQuestion(questionId)
       if (selectedSurvey) {
         fetchQuestions(selectedSurvey)
       }
@@ -385,9 +327,7 @@ export function EnhancedSurveyCreator() {
     const newStatus = currentStatus === "active" ? "closed" : "active"
 
     try {
-      const { error } = await supabase.from("surveys").update({ status: newStatus }).eq("id", surveyId)
-
-      if (error) throw error
+      await DatabaseService.updateSurvey(surveyId, { status: newStatus })
       fetchData()
       alert(`Survey ${newStatus === "active" ? "activated" : "closed"} successfully!`)
     } catch (error) {
@@ -401,9 +341,7 @@ export function EnhancedSurveyCreator() {
     }
 
     try {
-      const { error } = await supabase.from("surveys").delete().eq("id", surveyId)
-
-      if (error) throw error
+      await DatabaseService.deleteSurvey(surveyId)
       fetchData()
     } catch (error) {
       console.error("Error deleting survey:", error)
@@ -432,7 +370,7 @@ export function EnhancedSurveyCreator() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Survey Creation</CardTitle>
+          <CardTitle>SchoolSurvey Quick Creation</CardTitle>
           <CardDescription>Create surveys instantly for any course</CardDescription>
         </CardHeader>
         <CardContent>
@@ -464,7 +402,7 @@ export function EnhancedSurveyCreator() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle>Advanced Survey Management</CardTitle>
+              <CardTitle>SchoolSurvey Advanced Management</CardTitle>
               <CardDescription>Create detailed surveys with custom questions and settings</CardDescription>
             </div>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

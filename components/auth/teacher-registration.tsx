@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { UserPlus, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 
@@ -317,9 +318,8 @@ export function TeacherRegistration() {
 
                 <div className="space-y-2">
                   <Label htmlFor="password">Password *</Label>
-                  <Input
+                  <PasswordInput
                     id="password"
-                    type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="Create a strong password"
@@ -328,9 +328,8 @@ export function TeacherRegistration() {
 
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password">Confirm Password *</Label>
-                  <Input
+                  <PasswordInput
                     id="confirm-password"
-                    type="password"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                     placeholder="Confirm your password"

@@ -20,7 +20,7 @@ import {
   MessageSquare,
   Target
 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 
 interface Student {
   id: string

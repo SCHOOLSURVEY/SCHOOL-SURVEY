@@ -17,8 +17,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
-import { generateTeacherCode } from "@/lib/admin-setup"
+import { DatabaseService } from "@/lib/database-client"
+import { generateTeacherCode } from "@/lib/admin-setup-client"
 import { Users, Key, Eye, EyeOff, Copy, RefreshCw, Search, Plus, AlertCircle } from "lucide-react"
 import type { User, School } from "@/lib/types"
 import { toast } from "sonner"
@@ -59,19 +59,7 @@ export function TeacherCodesManager() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      const { data: teachersData, error } = await supabase
-        .from("users")
-        .select(`
-          *,
-          school:schools(*)
-        `)
-        .eq("role", "teacher")
-        .eq("is_active", true)
-        .eq("school_id", schoolId) // Filter by current school
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-
+      const teachersData = await DatabaseService.getUsersByRole(schoolId, "teacher")
       setTeachers(teachersData || [])
     } catch (error) {
       console.error("Error fetching teachers:", error)
@@ -85,16 +73,11 @@ export function TeacherCodesManager() {
     try {
       const newCode = generateTeacherCode()
       
-      const { error } = await supabase
-        .from("users")
-        .update({ teacher_code: newCode })
-        .eq("id", teacherId)
-
-      if (error) throw error
+      await DatabaseService.updateUser(teacherId, { teacher_code: newCode })
 
       // Update local state
       setTeachers(prev => prev.map(teacher => 
-        teacher.id === teacherId 
+        teacher._id === teacherId 
           ? { ...teacher, teacher_code: newCode }
           : teacher
       ))
@@ -136,26 +119,17 @@ export function TeacherCodesManager() {
         .padStart(3, "0")}`
 
       // Create teacher user
-      const { data: newTeacherData, error } = await supabase
-        .from("users")
-        .insert({
-          school_id: schoolId,
-          unique_id: uniqueId,
-          email: newTeacher.email,
-          full_name: newTeacher.full_name,
-          role: "teacher",
-          class_number: newTeacher.class_number || null,
-          teacher_code: teacherCode,
-          email_verified: true,
-          is_active: true
-        })
-        .select(`
-          *,
-          school:schools(*)
-        `)
-        .single()
-
-      if (error) throw error
+      const newTeacherData = await DatabaseService.createUser({
+        school_id: schoolId,
+        unique_id: uniqueId,
+        email: newTeacher.email,
+        full_name: newTeacher.full_name,
+        role: "teacher",
+        class_number: newTeacher.class_number || null,
+        teacher_code: teacherCode,
+        email_verified: true,
+        is_active: true
+      })
 
       setMessage({ type: "success", text: "Teacher created successfully!" })
       setNewTeacher({ email: "", full_name: "", class_number: "", department: "" })
@@ -332,7 +306,7 @@ export function TeacherCodesManager() {
                 </TableHeader>
                 <TableBody>
                   {filteredTeachers.map((teacher) => (
-                    <TableRow key={teacher.id}>
+                    <TableRow key={teacher._id}>
                       <TableCell>
                         <div>
                           <div className="font-medium">{teacher.full_name}</div>
@@ -361,14 +335,14 @@ export function TeacherCodesManager() {
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <div className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                            {showCodes[teacher.id] ? teacher.teacher_code || "No Code" : "••••••••"}
+                            {showCodes[teacher._id] ? teacher.teacher_code || "No Code" : "••••••••"}
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => toggleCodeVisibility(teacher.id)}
+                            onClick={() => toggleCodeVisibility(teacher._id)}
                           >
-                            {showCodes[teacher.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {showCodes[teacher._id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                           {teacher.teacher_code && (
                             <Button
@@ -385,7 +359,7 @@ export function TeacherCodesManager() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => generateNewTeacherCode(teacher.id)}
+                          onClick={() => generateNewTeacherCode(teacher._id)}
                         >
                           <RefreshCw className="h-4 w-4 mr-1" />
                           <span className="hidden sm:inline">Regenerate</span>

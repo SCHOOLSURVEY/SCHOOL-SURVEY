@@ -20,7 +20,7 @@ import {
   AreaChart,
   Area,
 } from "recharts"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { TrendingUp, Users, BookOpen, Calendar, AlertTriangle } from "lucide-react"
 
 export function AdvancedAnalytics() {

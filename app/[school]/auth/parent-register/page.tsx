@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Users, AlertCircle, CheckCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface School {
-  id: string
+  _id: string
   name: string
   slug: string
   abbreviation: string
@@ -49,15 +50,13 @@ export default function SchoolSpecificParentRegistration() {
 
   const fetchSchoolInfo = async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, slug, abbreviation, primary_color, secondary_color, logo_url")
-        .eq("slug", schoolSlug)
-        .eq("is_active", true)
-        .single()
-
-      if (error) throw error
-      setSchool(data)
+      const schools = await DatabaseService.getAllSchools()
+      const school = schools.find(s => s.slug === schoolSlug && s.is_active)
+      
+      if (!school) {
+        throw new Error("School not found")
+      }
+      setSchool(school)
     } catch (error) {
       console.error("Error fetching school info:", error)
       // Redirect to main page if school not found
@@ -247,9 +246,8 @@ export default function SchoolSpecificParentRegistration() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="password">Password *</Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   required
@@ -259,9 +257,8 @@ export default function SchoolSpecificParentRegistration() {
               
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                <Input
+                <PasswordInput
                   id="confirmPassword"
-                  type="password"
                   value={formData.confirmPassword}
                   onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                   required

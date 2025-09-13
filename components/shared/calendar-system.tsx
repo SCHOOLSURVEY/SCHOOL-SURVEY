@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 // import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { CalendarIcon, Plus, Clock, MapPin, Users, BookOpen, AlertCircle } from "lucide-react"
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns"
 import { cn } from "@/lib/utils"

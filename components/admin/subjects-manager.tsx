@@ -15,12 +15,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Plus, Edit, Trash2, BookOpen, Save, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 interface Subject {
-  id: string
+  _id: string
   name: string
   code: string
   description?: string
@@ -53,13 +53,7 @@ export function SubjectsManager() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      const { data, error } = await supabase
-        .from("subjects")
-        .select("*")
-        .eq("school_id", schoolId) // Filter by current school
-        .order("name")
-
-      if (error) throw error
+      const data = await DatabaseService.getSubjectsBySchool(schoolId)
       setSubjects(data || [])
     } catch (error) {
       console.error("Error fetching subjects:", error)
@@ -90,16 +84,12 @@ export function SubjectsManager() {
         return
       }
 
-      const { error } = await supabase.from("subjects").insert([
-        {
-          school_id: schoolId,
-          name: newSubject.name,
-          code: newSubject.code.toUpperCase(),
-          description: newSubject.description || null,
-        },
-      ])
-
-      if (error) throw error
+      await DatabaseService.createSubject({
+        school_id: schoolId,
+        name: newSubject.name,
+        code: newSubject.code.toUpperCase(),
+        description: newSubject.description || null,
+      })
 
       setNewSubject({ name: "", code: "", description: "" })
       setIsCreateDialogOpen(false)
@@ -136,16 +126,11 @@ export function SubjectsManager() {
         return
       }
 
-      const { error } = await supabase
-        .from("subjects")
-        .update({
-          name: newSubject.name,
-          code: newSubject.code.toUpperCase(),
-          description: newSubject.description || null,
-        })
-        .eq("id", editingSubject.id)
-
-      if (error) throw error
+      await DatabaseService.updateSubject(editingSubject.id, {
+        name: newSubject.name,
+        code: newSubject.code.toUpperCase(),
+        description: newSubject.description || null,
+      })
 
       setEditingSubject(null)
       setNewSubject({ name: "", code: "", description: "" })
@@ -168,9 +153,7 @@ export function SubjectsManager() {
     }
 
     try {
-      const { error } = await supabase.from("subjects").delete().eq("id", subjectId)
-
-      if (error) throw error
+      await DatabaseService.deleteSubject(subjectId)
       fetchSubjects()
       alert("Subject deleted successfully!")
     } catch (error) {
@@ -266,7 +249,7 @@ export function SubjectsManager() {
               </TableHeader>
               <TableBody>
                 {subjects.map((subject) => (
-                  <TableRow key={subject.id}>
+                  <TableRow key={subject._id}>
                     <TableCell className="font-medium">{subject.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{subject.code}</Badge>
@@ -281,7 +264,7 @@ export function SubjectsManager() {
                     <TableCell>{new Date(subject.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-1">
-                        {editingSubject?.id === subject.id ? (
+                        {editingSubject?._id === subject._id ? (
                           <>
                             <Button size="sm" onClick={saveEdit}>
                               <Save className="h-3 w-3 mr-1" />
@@ -301,7 +284,7 @@ export function SubjectsManager() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => deleteSubject(subject.id)}
+                              onClick={() => deleteSubject(subject._id)}
                               className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="h-4 w-4" />

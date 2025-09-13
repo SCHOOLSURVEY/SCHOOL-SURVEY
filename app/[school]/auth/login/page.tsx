@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { authenticate } from "@/lib/auth-actions"
-import { validateAdminCode, validateTeacherCode } from "@/lib/admin-setup"
+import { validateAdminCode, validateTeacherCode } from "@/lib/admin-setup-client"
 import { useToast } from "@/hooks/use-toast"
 import { SessionManager } from "@/lib/session-manager"
 import { useRouter } from "next/navigation"
@@ -14,14 +14,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Key, User, Mail, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { useEffect } from "react"
+import { AnimatedBackground } from "@/components/ui/animated-background"
 
 interface School {
-  id: string
+  _id: string
   name: string
   slug: string
   abbreviation: string
@@ -91,10 +93,10 @@ export default function SchoolSpecificLoginPage() {
   const [school, setSchool] = useState<School | null>(null)
   const [loginMode, setLoginMode] = useState<"student" | "teacher" | "admin">("student")
   const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [successType, setSuccessType] = useState<"login" | "admin" | "teacher">("login")
   const [loginError, setLoginError] = useState<string>("")
+  const [error, setError] = useState<string>("")
 
   // Fetch school information based on slug
   useEffect(() => {
@@ -107,18 +109,18 @@ export default function SchoolSpecificLoginPage() {
 
   const fetchSchoolInfo = async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, slug, abbreviation, primary_color, secondary_color, logo_url")
-        .eq("slug", schoolSlug)
-        .eq("is_active", true)
-        .single()
-
-      if (error) throw error
-      setSchool(data)
+      const schools = await DatabaseService.getAllSchools()
+      const school = schools.find(s => s.slug === schoolSlug && s.is_active)
+      
+      if (!school) {
+        setError("School not found. Please select a valid school.")
+        return
+      }
+      setSchool(school)
+      setError("")
     } catch (error) {
-      // Redirect to school select if school not found
-      router.push("/school-select")
+      console.error("Error fetching school info:", error)
+      setError("Failed to load school information. Please try again.")
     }
   }
 
@@ -200,9 +202,9 @@ export default function SchoolSpecificLoginPage() {
       let result
       
       if (loginMode === "teacher") {
-        result = await validateTeacherCode(data.code, school.id)
+        result = await validateTeacherCode(data.code, school._id)
       } else {
-        result = await validateAdminCode(data.code, school.id)
+        result = await validateAdminCode(data.code, school._id)
       }
 
       if (result.success && result.user) {
@@ -259,32 +261,28 @@ export default function SchoolSpecificLoginPage() {
   const secondaryColor = school.secondary_color || '#1E40AF'
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{
-        background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}15)`
-      }}
-    >
-      <Card className="w-full max-w-md border-0 shadow-xl">
-        <CardHeader className="text-center" style={{ backgroundColor: `${primaryColor}05` }}>
+    <AnimatedBackground>
+      <div className="w-full max-w-md mx-2 sm:mx-0">
+        <Card className="w-full border border-gray-200 shadow-xl bg-white">
+        <CardHeader className="text-center p-4 sm:p-6" style={{ backgroundColor: `${primaryColor}05` }}>
           {school.logo_url && (
-            <div className="mx-auto mb-4">
+            <div className="mx-auto mb-3 sm:mb-4">
               <img 
                 src={school.logo_url} 
                 alt={`${school.name} Logo`}
-                className="w-16 h-16 object-contain"
+                className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
               />
             </div>
           )}
-          <CardTitle className="text-2xl font-bold text-gray-900">
+          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">
             Welcome to {school.name}
           </CardTitle>
-          <CardDescription className="text-gray-600">
+          <CardDescription className="text-sm sm:text-base text-gray-600">
             Sign in to access your account
           </CardDescription>
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
           {/* Login Mode Selector */}
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
             <Button
@@ -332,6 +330,12 @@ export default function SchoolSpecificLoginPage() {
           </div>
 
           {/* Error Display */}
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           {loginError && (
             <Alert variant="destructive" className="mt-4">
               <AlertCircle className="h-4 w-4" />
@@ -362,23 +366,13 @@ export default function SchoolSpecificLoginPage() {
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                  <PasswordInput
                     id="password"
-                    type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    className="pl-10 pr-10"
+                    className="pl-10"
                     {...loginForm.register("password")}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
                 </div>
                 {loginForm.formState.errors.password && (
                   <p className="text-sm text-red-600">{loginForm.formState.errors.password.message}</p>
@@ -438,14 +432,14 @@ export default function SchoolSpecificLoginPage() {
 
           {/* Registration Links */}
           <div className="text-center space-y-3">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-almost-black/70">
               Don't have an account? Register as:
             </p>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
               <Button
                 variant="outline"
                 size="sm"
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                className="text-royal-blue border-royal-blue/30 hover:bg-royal-blue hover:text-white hover:border-royal-blue btn-hover-lift transition-all duration-300 font-medium text-xs sm:text-sm py-2"
                 onClick={() => router.push(`/${schoolSlug}/auth/teacher-register`)}
               >
                 Teacher
@@ -453,7 +447,7 @@ export default function SchoolSpecificLoginPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-green-600 border-green-200 hover:bg-green-50"
+                className="text-emerald-green border-emerald-green/30 hover:bg-emerald-green hover:text-white hover:border-emerald-green btn-hover-lift transition-all duration-300 font-medium text-xs sm:text-sm py-2"
                 onClick={() => router.push(`/${schoolSlug}/auth/student-register`)}
               >
                 Student
@@ -461,22 +455,22 @@ export default function SchoolSpecificLoginPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                className="text-vibrant-orange border-vibrant-orange/30 hover:bg-vibrant-orange hover:text-white hover:border-vibrant-orange btn-hover-lift transition-all duration-300 font-medium text-xs sm:text-sm py-2"
                 onClick={() => router.push(`/${schoolSlug}/auth/parent-register`)}
               >
                 Parent
               </Button>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-almost-black/50">
               Need help? Contact your school administrator
             </p>
           </div>
         </CardContent>
-      </Card>
+        </Card>
 
-      {/* Success Animation */}
-      <SuccessAnimation isVisible={showSuccess} type={successType} />
-
-    </div>
+        {/* Success Animation */}
+        <SuccessAnimation isVisible={showSuccess} type={successType} />
+      </div>
+    </AnimatedBackground>
   )
 }

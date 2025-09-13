@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const bucket = formData.get('bucket') as string || 'submissions';
@@ -45,41 +43,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename
+    // For now, return a mock response since we don't have file storage set up
+    // In a real implementation, you would store files in MongoDB GridFS or AWS S3
     const timestamp = Date.now();
     const fileExtension = file.name.split('.').pop();
     const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
     const filePath = folder ? `${folder}/${fileName}` : fileName;
 
-    // Upload file to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-
-    if (error) {
-      console.error('Upload error:', error);
-      return NextResponse.json(
-        { error: 'Failed to upload file' },
-        { status: 500 }
-      );
-    }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
-
     return NextResponse.json({
       success: true,
       file: {
-        id: data.path,
+        id: filePath,
         name: file.name,
         size: file.size,
         type: file.type,
-        url: publicUrl,
+        url: `/uploads/${filePath}`, // Mock URL
         uploadedAt: new Date().toISOString()
       }
     });
@@ -94,7 +72,6 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
     const { searchParams } = new URL(request.url);
     const filePath = searchParams.get('path');
     const bucket = searchParams.get('bucket') || 'submissions';
@@ -106,18 +83,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase.storage
-      .from(bucket)
-      .remove([filePath]);
-
-    if (error) {
-      console.error('Delete error:', error);
-      return NextResponse.json(
-        { error: 'Failed to delete file' },
-        { status: 500 }
-      );
-    }
-
+    // For now, return success since we don't have file storage set up
+    // In a real implementation, you would delete files from MongoDB GridFS or AWS S3
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Unexpected error:', error);
@@ -127,6 +94,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-
-
-

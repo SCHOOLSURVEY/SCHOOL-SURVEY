@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
-import { createTeacherUser } from "@/lib/admin-setup"
+import { DatabaseService } from "@/lib/database-client"
+import { createTeacherUser } from "@/lib/admin-setup-client"
 import { CheckCircle, Key, UserPlus, AlertCircle, Copy, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
 interface School {
-  id: string
+  _id: string
   name: string
   slug: string
   abbreviation: string
@@ -52,15 +52,13 @@ export default function SchoolSpecificTeacherRegistration() {
 
   const fetchSchoolInfo = async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, slug, abbreviation, primary_color, secondary_color, logo_url")
-        .eq("slug", schoolSlug)
-        .eq("is_active", true)
-        .single()
-
-      if (error) throw error
-      setSchool(data)
+      const schools = await DatabaseService.getAllSchools()
+      const school = schools.find(s => s.slug === schoolSlug && s.is_active)
+      
+      if (!school) {
+        throw new Error("School not found")
+      }
+      setSchool(school)
     } catch (error) {
       console.error("Error fetching school info:", error)
       // Redirect to main page if school not found

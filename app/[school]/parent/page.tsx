@@ -4,11 +4,11 @@ import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Users, BookOpen, TrendingUp, Calendar, MessageCircle } from "lucide-react"
 
 interface School {
-  id: string
+  _id: string
   name: string
   slug: string
   abbreviation: string
@@ -31,15 +31,14 @@ export default function SchoolSpecificParentDashboard() {
 
   const fetchSchoolInfo = async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, slug, abbreviation, primary_color, secondary_color, logo_url")
-        .eq("slug", schoolSlug)
-        .eq("is_active", true)
-        .single()
-
-      if (error) throw error
-      setSchool(data)
+      const schools = await DatabaseService.getAllSchools()
+      const school = schools.find(s => s.slug === schoolSlug && s.is_active)
+      
+      if (!school) {
+        console.error("School not found for slug:", schoolSlug)
+        return
+      }
+      setSchool(school)
     } catch (error) {
       console.error("Error fetching school info:", error)
     } finally {

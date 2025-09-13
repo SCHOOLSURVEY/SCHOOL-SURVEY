@@ -9,7 +9,7 @@ import { Gradebook } from "@/components/teacher/gradebook"
 import { AssignmentManager } from "@/components/teacher/assignment-manager"
 import { AttendanceManager } from "@/components/teacher/attendance-manager"
 import { TeacherCodeDisplay } from "@/components/teacher/teacher-code-display"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import type { Course, User } from "@/lib/types"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { BookOpen, Users, FileText, BarChart3, Calendar } from "lucide-react"
@@ -125,10 +125,10 @@ export default function TeacherDashboard() {
   return (
     <DashboardLayout requiredRole="teacher">
       <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-4 sm:space-y-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-3 sm:space-y-0">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">Welcome, {currentUser.full_name}</p>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-almost-black">SchoolSurvey Teacher Dashboard</h1>
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">Welcome, {currentUser.full_name}</p>
             <p className="text-xs sm:text-sm text-muted-foreground">ID: {currentUser.unique_id}</p>
           </div>
         </div>

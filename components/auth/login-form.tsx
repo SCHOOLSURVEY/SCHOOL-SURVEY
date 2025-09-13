@@ -5,11 +5,12 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { authenticate, createUser } from "@/lib/auth-actions"
-import { validateAdminCode } from "@/lib/admin-setup"
+import { validateAdminCode } from "@/lib/admin-setup-client"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 
 import { Info, Key } from "lucide-react"
+import { AnimatedBackground } from "@/components/ui/animated-background"
 
 // Confetti Component
 const Confetti = ({ isActive }: { isActive: boolean }) => {
@@ -479,7 +480,7 @@ export function LoginForm({ className }: { className?: string }) {
   }
 
   return (
-    <>
+    <AnimatedBackground>
       {/* Success Animations */}
       <SuccessAnimation isVisible={showLoginSuccess} type="login" />
       <SuccessAnimation isVisible={showSignupConfetti} type="signup" />
@@ -488,20 +489,20 @@ export function LoginForm({ className }: { className?: string }) {
       {/* Confetti Animation for Signup */}
       <Confetti isActive={showSignupConfetti} />
       
-      <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg p-8 w-[380px] animate-fade-in-subtle">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-4 sm:p-8 w-full max-w-[380px] mx-4 sm:mx-0 animate-fade-in-subtle hover:shadow-3xl transition-all duration-300">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">School Management System</h1>
-          <p className="text-sm text-gray-600">{getModeTitle()}</p>
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-semibold text-almost-black mb-2">SchoolSurvey</h1>
+          <p className="text-xs sm:text-sm text-almost-black/70">{getModeTitle()}</p>
         </div>
 
         {/* Mode Tabs */}
-        <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+        <div className="flex mb-4 sm:mb-6 bg-very-light-gray rounded-lg p-1 shadow-inner">
           <button
             type="button"
             onClick={() => switchMode("login")}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
-              mode === "login" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+            className={`flex-1 py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
+              mode === "login" ? "bg-pure-white text-almost-black shadow-sm" : "text-almost-black/60 hover:text-almost-black hover:bg-royal-blue/5"
             }`}
           >
             Login
@@ -509,8 +510,8 @@ export function LoginForm({ className }: { className?: string }) {
           <button
             type="button"
             onClick={() => switchMode("signup")}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
-              mode === "signup" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+            className={`flex-1 py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
+              mode === "signup" ? "bg-pure-white text-almost-black shadow-sm" : "text-almost-black/60 hover:text-almost-black hover:bg-royal-blue/5"
             }`}
           >
             Sign Up
@@ -518,8 +519,8 @@ export function LoginForm({ className }: { className?: string }) {
           <button
             type="button"
             onClick={() => switchMode("admin")}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
-              mode === "admin" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+            className={`flex-1 py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
+              mode === "admin" ? "bg-pure-white text-almost-black shadow-sm" : "text-almost-black/60 hover:text-almost-black hover:bg-royal-blue/5"
             }`}
           >
             Admin
@@ -554,7 +555,7 @@ export function LoginForm({ className }: { className?: string }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gray-900 text-white py-3 rounded-lg hover:bg-gray-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium transform hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full bg-emerald-green text-white py-3 rounded-lg hover:bg-emerald-green/90 btn-hover-lift disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -606,7 +607,7 @@ export function LoginForm({ className }: { className?: string }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium transform hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full bg-vibrant-orange text-white py-3 rounded-lg hover:bg-vibrant-orange/90 btn-hover-lift disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -742,7 +743,7 @@ export function LoginForm({ className }: { className?: string }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gray-900 text-white py-3 rounded-lg hover:bg-gray-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium mt-6 transform hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full bg-royal-blue text-white py-3 rounded-lg hover:bg-royal-blue/90 btn-hover-lift disabled:opacity-50 disabled:cursor-not-allowed font-medium mt-6"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -834,6 +835,6 @@ export function LoginForm({ className }: { className?: string }) {
           animation-delay: 0.3s;
         }
       `}</style>
-    </>
+    </AnimatedBackground>
   )
 }

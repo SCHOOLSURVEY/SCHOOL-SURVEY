@@ -1,6 +1,6 @@
-# School Management System
+# SchoolSurvey
 
-A comprehensive, modern school management system built with Next.js, TypeScript, Tailwind CSS, and Supabase.
+A comprehensive, modern school survey and feedback system built with Next.js, TypeScript, Tailwind CSS, and Supabase.
 
 ## 🚀 Features
 
@@ -66,7 +66,7 @@ A comprehensive, modern school management system built with Next.js, TypeScript,
 
 ```bash
 git clone <repository-url>
-cd school-management-system
+cd school-survey
 ```
 
 ### 2. Install Dependencies
@@ -156,7 +156,7 @@ The system uses Supabase Auth with the following configuration:
 ## 📁 Project Structure
 
 ```
-school-management-system/
+school-survey/
 ├── app/                    # Next.js app directory
 │   ├── admin/             # Admin dashboard routes
 │   ├── teacher/           # Teacher dashboard routes
@@ -287,7 +287,7 @@ For support and questions:
 
 ---
 
-**Happy Teaching! 🎓**
+**Happy Surveying! 📊**
 
 
 

@@ -16,11 +16,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Search, Filter, Eye, Edit, Trash2, Users, Mail, Phone, Calendar } from "lucide-react"
 
 interface User {
-  id: string
+  _id: string
   unique_id: string
   email: string
   full_name: string
@@ -60,13 +60,7 @@ export function UsersTable() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("school_id", schoolId) // Filter by current school
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
+      const data = await DatabaseService.getAllUsers(schoolId)
       setUsers(data || [])
     } catch (error) {
       console.error("Error fetching users:", error)
@@ -104,9 +98,7 @@ export function UsersTable() {
     }
 
     try {
-      const { error } = await supabase.from("users").delete().eq("id", userId)
-
-      if (error) throw error
+      await DatabaseService.deleteUser(userId)
       fetchUsers()
       alert("User deleted successfully!")
     } catch (error) {
@@ -250,7 +242,7 @@ export function UsersTable() {
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow key={user._id}>
                       <TableCell>
                         <div>
                           <div className="font-medium">{user.full_name}</div>
@@ -327,7 +319,7 @@ export function UsersTable() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => deleteUser(user.id)}
+                            onClick={() => deleteUser(user._id)}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                             title="Delete User"
                           >

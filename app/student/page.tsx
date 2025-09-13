@@ -6,7 +6,7 @@ import { EnhancedSurveyForm } from "@/components/student/enhanced-survey-form"
 import { AttendanceView } from "@/components/student/attendance-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import type { Survey, User } from "@/lib/types"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { BookOpen, Clock, Users, RefreshCw, AlertCircle } from "lucide-react"
@@ -137,7 +137,7 @@ export default function StudentDashboard() {
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-green mx-auto"></div>
             <p className="mt-2 text-sm text-muted-foreground">Loading your dashboard...</p>
           </div>
         </div>
@@ -162,11 +162,11 @@ export default function StudentDashboard() {
   return (
     <DashboardLayout requiredRole="student">
       <div className="space-y-8">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold">Student Dashboard</h1>
-            <p className="text-muted-foreground">Welcome, {currentUser.full_name}</p>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-almost-black">SchoolSurvey Student Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Welcome, {currentUser.full_name}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               ID: {currentUser.unique_id} | Class: {currentUser.class_number}
             </p>
           </div>

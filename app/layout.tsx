@@ -6,8 +6,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "School Management System",
-  description: "Comprehensive school database management software for teachers and students",
+  title: "SchoolSurvey",
+  description: "Comprehensive school survey and feedback system for teachers and students",
     generator: 'v0.dev'
 }
 

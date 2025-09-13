@@ -7,11 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Building2, Search, ArrowRight, Users } from "lucide-react"
+import { AnimatedBackground } from "@/components/ui/animated-background"
 
 interface School {
-  id: string
+  _id: string
   name: string
   slug: string
   abbreviation: string
@@ -33,13 +34,7 @@ export default function DirectLoginPage() {
 
   const fetchSchools = async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("id, name, slug, abbreviation, primary_color, secondary_color, logo_url")
-        .eq("is_active", true)
-        .order("name")
-
-      if (error) throw error
+      const data = await DatabaseService.getAllSchools()
       setSchools(data || [])
     } catch (error: any) {
       console.error("Error fetching schools:", error)
@@ -71,14 +66,15 @@ export default function DirectLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-            <Building2 className="w-8 h-8 text-blue-600" />
+    <AnimatedBackground>
+      <div className="w-full max-w-4xl">
+        <Card className="w-full shadow-xl border border-gray-200 bg-white">
+        <CardHeader className="text-center bg-gradient-to-r from-emerald-green/5 to-royal-blue/5">
+          <div className="mx-auto w-16 h-16 bg-emerald-green/10 rounded-full flex items-center justify-center mb-4 shadow-lg">
+            <Building2 className="w-8 h-8 text-emerald-green" />
           </div>
-          <CardTitle className="text-3xl font-bold text-gray-900">Select Your School</CardTitle>
-          <CardDescription className="text-lg text-gray-600">
+          <CardTitle className="text-3xl font-bold text-almost-black">SchoolSurvey</CardTitle>
+          <CardDescription className="text-lg text-almost-black/70">
             Choose your school to access the login portal
           </CardDescription>
         </CardHeader>
@@ -108,7 +104,7 @@ export default function DirectLoginPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredSchools.map((school) => (
               <Card 
-                key={school.id} 
+                key={school._id} 
                 className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-300"
                 onClick={() => handleSchoolSelect(school)}
               >
@@ -175,8 +171,9 @@ export default function DirectLoginPage() {
             </p>
           </div>
         </CardContent>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </AnimatedBackground>
   )
 }
 

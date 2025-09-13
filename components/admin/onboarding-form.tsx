@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { createUser } from "@/lib/auth-flow"
+import { createUser } from "@/lib/auth-actions"
 import { Info, Mail, Phone } from "lucide-react"
 
 interface OnboardingFormProps {

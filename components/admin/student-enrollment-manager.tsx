@@ -16,11 +16,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Plus, Trash2, Users, BookOpen, UserPlus } from "lucide-react"
 
 interface Student {
-  id: string
+  _id: string
   unique_id: string
   full_name: string
   email: string
@@ -29,7 +29,7 @@ interface Student {
 }
 
 interface Course {
-  id: string
+  _id: string
   name: string
   class_number: string
   subjects: { name: string }
@@ -37,7 +37,7 @@ interface Course {
 }
 
 interface Enrollment {
-  id: string
+  _id: string
   student_id: string
   course_id: string
   enrolled_at: string
@@ -72,56 +72,12 @@ export function StudentEnrollmentManager() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      // Fetch enrollments with related data
-      const { data: enrollmentsData, error: enrollmentsError } = await supabase
-        .from("course_enrollments")
-        .select(`
-          *,
-          student:users!inner(
-            id,
-            unique_id,
-            full_name,
-            email,
-            class_number,
-            created_at
-          ),
-          course:courses!inner(
-            id,
-            name,
-            class_number,
-            subjects!inner(name),
-            users!inner(full_name)
-          )
-        `)
-        .eq("school_id", schoolId) // Filter by current school
-        .order("enrolled_at", { ascending: false })
-
-      if (enrollmentsError) throw enrollmentsError
-
-      // Fetch available students
-      const { data: studentsData, error: studentsError } = await supabase
-        .from("users")
-        .select("id, unique_id, full_name, email, class_number, created_at")
-        .eq("role", "student")
-        .eq("school_id", schoolId) // Filter by current school
-        .order("full_name")
-
-      if (studentsError) throw studentsError
-
-      // Fetch available courses
-      const { data: coursesData, error: coursesError } = await supabase
-        .from("courses")
-        .select(`
-          id,
-          name,
-          class_number,
-          subjects!inner(name),
-          users!inner(full_name)
-        `)
-        .eq("school_id", schoolId) // Filter by current school
-        .order("name")
-
-      if (coursesError) throw coursesError
+      // Fetch enrollments, students, and courses using MongoDB
+      const [enrollmentsData, studentsData, coursesData] = await Promise.all([
+        DatabaseService.getAllCourseEnrollments(schoolId),
+        DatabaseService.getUsersByRole(schoolId, "student"),
+        DatabaseService.getCoursesBySchool(schoolId)
+      ])
 
       setEnrollments(enrollmentsData || [])
       setStudents(studentsData || [])
@@ -159,27 +115,19 @@ export function StudentEnrollmentManager() {
       const schoolId = currentUser.school_id
 
       // Get the course details to extract term_id
-      const { data: courseData, error: courseError } = await supabase
-        .from("courses")
-        .select("term_id")
-        .eq("id", newEnrollment.course_id)
-        .single()
+      const courseData = await DatabaseService.getCourseById(newEnrollment.course_id)
 
-      if (courseError || !courseData) {
+      if (!courseData) {
         throw new Error("Could not find course details")
       }
 
-      const { error } = await supabase.from("course_enrollments").insert([
-        {
-          school_id: schoolId,
-          student_id: newEnrollment.student_id,
-          course_id: newEnrollment.course_id,
-          term_id: courseData.term_id,
-          status: "active",
-        },
-      ])
-
-      if (error) throw error
+      await DatabaseService.createCourseEnrollment({
+        school_id: schoolId,
+        student_id: newEnrollment.student_id,
+        course_id: newEnrollment.course_id,
+        term_id: courseData.term_id,
+        status: "active",
+      })
 
       setNewEnrollment({ student_id: "", course_id: "" })
       setIsEnrollDialogOpen(false)
@@ -193,12 +141,7 @@ export function StudentEnrollmentManager() {
 
   const updateEnrollmentStatus = async (enrollmentId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from("course_enrollments")
-        .update({ status: newStatus })
-        .eq("id", enrollmentId)
-
-      if (error) throw error
+      await DatabaseService.updateCourseEnrollment(enrollmentId, { status: newStatus })
       fetchData()
     } catch (error) {
       console.error("Error updating enrollment:", error)
@@ -209,9 +152,7 @@ export function StudentEnrollmentManager() {
     if (!confirm("Are you sure you want to remove this enrollment?")) return
 
     try {
-      const { error } = await supabase.from("course_enrollments").delete().eq("id", enrollmentId)
-
-      if (error) throw error
+      await DatabaseService.deleteCourseEnrollment(enrollmentId)
       fetchData()
     } catch (error) {
       console.error("Error removing enrollment:", error)
@@ -271,7 +212,7 @@ export function StudentEnrollmentManager() {
                       </SelectTrigger>
                       <SelectContent>
                         {students.map((student) => (
-                          <SelectItem key={student.id} value={student.id}>
+                          <SelectItem key={student._id} value={student._id}>
                             {student.full_name} ({student.unique_id})
                           </SelectItem>
                         ))}
@@ -289,7 +230,7 @@ export function StudentEnrollmentManager() {
                       </SelectTrigger>
                       <SelectContent>
                         {courses.map((course) => (
-                          <SelectItem key={course.id} value={course.id}>
+                          <SelectItem key={course._id} value={course._id}>
                             {course.name} - {course.class_number} ({course.subjects.name})
                           </SelectItem>
                         ))}
@@ -329,7 +270,7 @@ export function StudentEnrollmentManager() {
               </TableHeader>
               <TableBody>
                 {enrollments.map((enrollment) => (
-                  <TableRow key={enrollment.id}>
+                  <TableRow key={enrollment._id}>
                     <TableCell>
                       <div>
                         <div className="font-medium">{enrollment.student.full_name}</div>
@@ -351,7 +292,7 @@ export function StudentEnrollmentManager() {
                     <TableCell>
                       <Select
                         value={enrollment.status}
-                        onValueChange={(value) => updateEnrollmentStatus(enrollment.id, value)}
+                        onValueChange={(value) => updateEnrollmentStatus(enrollment._id, value)}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />
@@ -368,7 +309,7 @@ export function StudentEnrollmentManager() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeEnrollment(enrollment.id)}
+                        onClick={() => removeEnrollment(enrollment._id)}
                         className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />

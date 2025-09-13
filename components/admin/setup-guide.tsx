@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Circle, BookOpen, Users, BarChart3 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 
 export function SetupGuide() {
   const [setupStatus, setSetupStatus] = useState({
@@ -30,35 +30,13 @@ export function SetupGuide() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      // Check for subjects
-      const { data: subjects } = await supabase
-        .from("subjects")
-        .select("id")
-        .eq("school_id", schoolId)
-        .limit(1)
-
-      // Check for teachers
-      const { data: teachers } = await supabase
-        .from("users")
-        .select("id")
-        .eq("role", "teacher")
-        .eq("school_id", schoolId)
-        .limit(1)
-
-      // Check for students
-      const { data: students } = await supabase
-        .from("users")
-        .select("id")
-        .eq("role", "student")
-        .eq("school_id", schoolId)
-        .limit(1)
-
-      // Check for courses
-      const { data: courses } = await supabase
-        .from("courses")
-        .select("id")
-        .eq("school_id", schoolId)
-        .limit(1)
+      // Check for subjects, teachers, students, and courses using MongoDB
+      const [subjects, teachers, students, courses] = await Promise.all([
+        DatabaseService.getSubjectsBySchool(schoolId),
+        DatabaseService.getUsersByRole(schoolId, 'teacher'),
+        DatabaseService.getUsersByRole(schoolId, 'student'),
+        DatabaseService.getCoursesBySchool(schoolId)
+      ])
 
       setSetupStatus({
         hasSubjects: (subjects?.length || 0) > 0,
@@ -73,35 +51,6 @@ export function SetupGuide() {
     }
   }
 
-  const createSampleData = async () => {
-    try {
-      // Get current user's school_id
-      const currentUserData = localStorage.getItem("currentUser")
-      if (!currentUserData) {
-        throw new Error("No current user found")
-      }
-      
-      const currentUser = JSON.parse(currentUserData)
-      const schoolId = currentUser.school_id
-
-      // Create sample subjects
-      if (!setupStatus.hasSubjects) {
-        await supabase.from("subjects").insert([
-          { school_id: schoolId, name: "Mathematics", code: "MATH", description: "Mathematics and Algebra" },
-          { school_id: schoolId, name: "Science", code: "SCI", description: "General Science" },
-          { school_id: schoolId, name: "English", code: "ENG", description: "English Language and Literature" },
-          { school_id: schoolId, name: "History", code: "HIST", description: "World History" },
-          { school_id: schoolId, name: "Physics", code: "PHYS", description: "Physics and Applied Sciences" },
-        ])
-      }
-
-      alert("Sample data created! You can now start onboarding users.")
-      checkSetupStatus()
-    } catch (error) {
-      console.error("Error creating sample data:", error)
-      alert("Error creating sample data")
-    }
-  }
 
   if (loading) {
     return <div>Loading setup guide...</div>
@@ -166,16 +115,6 @@ export function SetupGuide() {
           </div>
         ))}
 
-        {!setupStatus.hasSubjects && (
-          <div className="pt-4 border-t">
-            <Button onClick={createSampleData} className="w-full">
-              Create Sample Subjects to Get Started
-            </Button>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              This will create basic subjects like Math, Science, English, etc.
-            </p>
-          </div>
-        )}
 
         {isSetupComplete && (
           <div className="pt-4 border-t bg-green-50 p-4 rounded-lg">

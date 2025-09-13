@@ -17,13 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
-import { generateAdminCode, createAdminUser } from "@/lib/admin-setup"
+import { DatabaseService } from "@/lib/database-client"
+import { generateAdminCode, createAdminUser } from "@/lib/admin-setup-client"
 import { Plus, Copy, Eye, EyeOff, Shield, RefreshCw, Users, Key, Building2, Search } from "lucide-react"
 import type { School } from "@/lib/types"
 
 interface AdminUser {
-  id: string
+  _id: string
   school_id: string
   unique_id: string
   email: string
@@ -58,29 +58,17 @@ export function SchoolSpecificAdminCodesManager() {
   const fetchData = async () => {
     try {
       // Fetch schools
-      const { data: schoolsData, error: schoolsError } = await supabase
-        .from("schools")
-        .select("*")
-        .eq("is_active", true)
-        .order("name")
+      const schoolsData = await DatabaseService.getAllSchools()
 
-      if (schoolsError) throw schoolsError
-
-      // Fetch admins with school information
-      const { data: adminsData, error: adminsError } = await supabase
-        .from("users")
-        .select(`
-          *,
-          school:schools(*)
-        `)
-        .eq("role", "admin")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-
-      if (adminsError) throw adminsError
+      // Fetch all admins from all schools
+      const allAdmins = []
+      for (const school of schoolsData) {
+        const admins = await DatabaseService.getUsersByRole(school._id, 'admin')
+        allAdmins.push(...admins.map(admin => ({ ...admin, school })))
+      }
 
       setSchools(schoolsData || [])
-      setAdmins(adminsData || [])
+      setAdmins(allAdmins || [])
     } catch (error) {
       console.error("Error fetching data:", error)
       setMessage({ type: "error", text: "Failed to fetch data" })
@@ -130,16 +118,11 @@ export function SchoolSpecificAdminCodesManager() {
     try {
       const newCode = generateAdminCode()
       
-      const { error } = await supabase
-        .from("users")
-        .update({ admin_code: newCode })
-        .eq("id", adminId)
-
-      if (error) throw error
+      await DatabaseService.updateUser(adminId, { admin_code: newCode })
 
       // Update local state
       setAdmins(prev => prev.map(admin => 
-        admin.id === adminId 
+        admin._id === adminId 
           ? { ...admin, admin_code: newCode }
           : admin
       ))
@@ -388,7 +371,7 @@ export function SchoolSpecificAdminCodesManager() {
                       </TableHeader>
                       <TableBody>
                         {schoolAdmins.map((admin) => (
-                          <TableRow key={admin.id}>
+                          <TableRow key={admin._id}>
                             <TableCell>
                               <div>
                                 <div className="font-medium">{admin.full_name}</div>
@@ -412,14 +395,14 @@ export function SchoolSpecificAdminCodesManager() {
                             <TableCell>
                               <div className="flex items-center space-x-2">
                                 <div className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                                  {showCodes[admin.id] ? admin.admin_code || "No Code" : "••••••••"}
+                                  {showCodes[admin._id] ? admin.admin_code || "No Code" : "••••••••"}
                                 </div>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => toggleCodeVisibility(admin.id)}
+                                  onClick={() => toggleCodeVisibility(admin._id)}
                                 >
-                                  {showCodes[admin.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                  {showCodes[admin._id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </Button>
                                 {admin.admin_code && (
                                   <Button
@@ -444,7 +427,7 @@ export function SchoolSpecificAdminCodesManager() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => regenerateAdminCode(admin.id)}
+                                onClick={() => regenerateAdminCode(admin._id)}
                               >
                                 <RefreshCw className="h-4 w-4 mr-1" />
                                 <span className="hidden sm:inline">Regenerate</span>

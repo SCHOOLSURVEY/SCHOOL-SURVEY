@@ -1,32 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { DatabaseService } from '@/lib/database-server';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
-    
     // Get notifications for admin users
-    const { data: notifications, error } = await supabase
-      .from('notifications')
-      .select(`
-        *,
-        users:user_id (
-          id,
-          email,
-          full_name,
-          role
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (error) {
-      console.error('Error fetching notifications:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch notifications' },
-        { status: 500 }
-      );
-    }
+    const notifications = await DatabaseService.getAllNotifications();
 
     return NextResponse.json({ notifications });
   } catch (error) {
@@ -40,7 +18,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
     const body = await request.json();
     
     const { title, message, type = 'info', user_id, target_role } = body;
@@ -53,26 +30,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Create notification
-    const { data: notification, error } = await supabase
-      .from('notifications')
-      .insert({
-        title,
-        message,
-        type,
-        user_id,
-        target_role,
-        is_read: false
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating notification:', error);
-      return NextResponse.json(
-        { error: 'Failed to create notification' },
-        { status: 500 }
-      );
-    }
+    const notification = await DatabaseService.createNotification({
+      title,
+      message,
+      type,
+      user_id,
+      target_role,
+      is_read: false
+    });
 
     return NextResponse.json({ notification });
   } catch (error) {
@@ -83,6 +48,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-

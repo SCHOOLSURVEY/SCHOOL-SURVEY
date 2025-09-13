@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 
 interface Course {
   id: string
@@ -214,7 +214,7 @@ export function QuickSurveyCreator({ teacherId, onSurveyCreated }: QuickSurveyCr
 
       <Card>
         <CardHeader>
-          <CardTitle>Quick Survey Creator</CardTitle>
+          <CardTitle>SchoolSurvey Creator</CardTitle>
           <CardDescription>Create a feedback survey for your students</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

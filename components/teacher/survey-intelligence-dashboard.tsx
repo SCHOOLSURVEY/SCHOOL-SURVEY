@@ -25,7 +25,7 @@ import {
   Target,
   Activity
 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { StudentPerformanceTracker } from "./student-performance-tracker"
 
 interface Survey {

@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MessagingSystem } from "@/components/shared/messaging-system"
 import { CalendarSystem } from "@/components/shared/calendar-system"
 import { NotificationCenter } from "@/components/notifications/notification-center"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { 
   Bell, 
   MessageSquare, 

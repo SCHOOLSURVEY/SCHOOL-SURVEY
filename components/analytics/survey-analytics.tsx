@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 
 interface AnalyticsData {
   averageRating: number
@@ -33,24 +33,7 @@ export function SurveyAnalytics() {
       const schoolId = currentUser.school_id
 
       // Fetch survey responses with course and rating data
-      const { data: responses, error } = await supabase
-        .from("survey_responses")
-        .select(`
-          response_value,
-          survey_id,
-          surveys!inner(
-            course_id,
-            courses!inner(
-              name,
-              subjects!inner(name)
-            )
-          ),
-          survey_questions!inner(question_type)
-        `)
-        .eq("survey_questions.question_type", "rating")
-        .eq("school_id", schoolId) // Filter by current school
-
-      if (error) throw error
+      const responses = await DatabaseService.getSurveyResponsesBySchool(schoolId)
 
       // Process the data
       const ratings = responses?.map((r) => Number.parseInt(r.response_value)).filter((r) => !isNaN(r)) || []

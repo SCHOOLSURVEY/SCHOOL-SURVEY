@@ -15,12 +15,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { supabase } from "@/lib/supabase"
-import { generateAdminCode, createAdminUser } from "@/lib/admin-setup"
+import { DatabaseService } from "@/lib/database-client"
+import { generateAdminCode, createAdminUser } from "@/lib/admin-setup-client"
 import { Plus, Copy, Eye, EyeOff, Shield, RefreshCw, Users, Key } from "lucide-react"
 
 interface AdminUser {
-  id: string
+  _id: string
   unique_id: string
   email: string
   full_name: string
@@ -57,14 +57,7 @@ export function AdminCodesManager() {
       const currentUser = JSON.parse(currentUserData)
       const schoolId = currentUser.school_id
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("role", "admin")
-        .eq("school_id", schoolId) // Filter by current school
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
+      const data = await DatabaseService.getUsersByRole(schoolId, 'admin')
       setAdmins(data || [])
     } catch (error) {
       console.error("Error fetching admins:", error)
@@ -109,12 +102,7 @@ export function AdminCodesManager() {
 
     try {
       const newCode = generateAdminCode()
-      const { error } = await supabase
-        .from("users")
-        .update({ admin_code: newCode })
-        .eq("id", adminId)
-
-      if (error) throw error
+      await DatabaseService.updateUser(adminId, { admin_code: newCode })
 
       fetchAdmins()
       setMessage({ type: "success", text: "Admin code regenerated successfully!" })
@@ -143,12 +131,12 @@ export function AdminCodesManager() {
       <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
         <div className="flex items-center space-x-2 min-w-0 flex-1">
           <span className="font-mono text-xs sm:text-sm truncate">
-            {showCodes[admin.id] ? admin.admin_code : "•".repeat(admin.admin_code.length)}
+            {showCodes[admin._id] ? admin.admin_code : "•".repeat(admin.admin_code.length)}
           </span>
         </div>
         <div className="flex items-center space-x-1">
-          <Button variant="ghost" size="sm" onClick={() => toggleCodeVisibility(admin.id)} className="h-6 w-6 p-0">
-            {showCodes[admin.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+          <Button variant="ghost" size="sm" onClick={() => toggleCodeVisibility(admin._id)} className="h-6 w-6 p-0">
+            {showCodes[admin._id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => copyToClipboard(admin.admin_code!)} className="h-6 w-6 p-0">
             <Copy className="h-3 w-3" />
@@ -156,7 +144,7 @@ export function AdminCodesManager() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => regenerateAdminCode(admin.id)}
+            onClick={() => regenerateAdminCode(admin._id)}
             className="h-6 w-6 p-0"
             title="Regenerate Code"
           >
@@ -299,7 +287,7 @@ export function AdminCodesManager() {
                 </TableHeader>
                 <TableBody>
                   {admins.map((admin) => (
-                    <TableRow key={admin.id}>
+                    <TableRow key={admin._id}>
                       <TableCell>
                         <div>
                           <div className="font-medium">{admin.full_name}</div>

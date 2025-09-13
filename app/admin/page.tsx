@@ -25,10 +25,10 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout requiredRole="admin">
       <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold">School Management Dashboard</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">Manage users, courses, and view analytics</p>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-almost-black">SchoolSurvey Admin Dashboard</h1>
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">Manage surveys, users, courses, and view analytics</p>
           </div>
         </div>
 

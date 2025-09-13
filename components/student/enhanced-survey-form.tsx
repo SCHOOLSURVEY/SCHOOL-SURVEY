@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import type { Survey, SurveyQuestion } from "@/lib/types"
 import { ArrowLeft, ArrowRight, CheckCircle } from "lucide-react"
 
@@ -102,7 +102,7 @@ export function EnhancedSurveyForm({ survey, studentId, onComplete }: EnhancedSu
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-green mx-auto"></div>
           <p className="mt-2 text-sm text-muted-foreground">Loading survey...</p>
         </div>
       </div>
@@ -111,14 +111,14 @@ export function EnhancedSurveyForm({ survey, studentId, onComplete }: EnhancedSu
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-very-light-gray">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
-              <CheckCircle className="h-16 w-16 text-green-600 mx-auto" />
-              <h2 className="text-2xl font-bold text-green-600">Thank You!</h2>
+              <CheckCircle className="h-16 w-16 text-emerald-green mx-auto" />
+              <h2 className="text-2xl font-bold text-emerald-green">Thank You!</h2>
               <p className="text-muted-foreground">
-                Your feedback has been submitted successfully. Your input helps improve the learning experience.
+                Your SchoolSurvey feedback has been submitted successfully. Your input helps improve the learning experience.
               </p>
               <div className="text-sm text-muted-foreground">Redirecting to dashboard...</div>
             </div>
@@ -135,7 +135,7 @@ export function EnhancedSurveyForm({ survey, studentId, onComplete }: EnhancedSu
   const allQuestionsAnswered = questions.every((q) => responses[q.id])
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-very-light-gray py-8">
       <div className="container mx-auto px-4 max-w-2xl">
         <div className="mb-6">
           <Button variant="outline" onClick={() => window.history.back()} className="mb-4">

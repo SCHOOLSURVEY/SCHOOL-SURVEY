@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { supabase } from "@/lib/supabase"
+import { DatabaseService } from "@/lib/database-client"
 import { Bell, Check, Settings, X } from "lucide-react"
 import type { Notification } from "@/lib/types"
 
@@ -21,49 +21,13 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
 
   useEffect(() => {
     fetchNotifications()
-
-    // Set up real-time subscription
-    const subscription = supabase
-      .channel("notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev])
-          setUnreadCount((prev) => prev + 1)
-
-          // Show browser notification if permission granted
-          if (Notification.permission === "granted") {
-            new Notification(payload.new.title, {
-              body: payload.new.message,
-              icon: "/favicon.ico",
-            })
-          }
-        },
-      )
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
+    // Note: Real-time subscriptions would need to be implemented with MongoDB
+    // For now, we'll use polling or manual refresh
   }, [userId])
 
   const fetchNotifications = async () => {
     try {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(50)
-
-      if (error) throw error
-
+      const data = await DatabaseService.getNotificationsByUser(userId)
       setNotifications(data || [])
       setUnreadCount(data?.filter((n) => !n.is_read).length || 0)
     } catch (error) {
@@ -75,9 +39,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", notificationId)
-
-      if (error) throw error
+      await DatabaseService.updateNotification(notificationId, { is_read: true })
 
       setNotifications(notifications.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
       setUnreadCount((prev) => Math.max(0, prev - 1))
