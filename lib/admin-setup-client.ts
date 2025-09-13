@@ -303,4 +303,30 @@ export async function validateTeacherCode(teacherCode: string, schoolId: string)
   }
 }
 
+/**
+ * Fetches all admin users for a school
+ */
+export async function getAllAdmins(schoolId?: string) {
+  try {
+    const response = await fetch(`/api/mongodb/users?role=admin${schoolId ? `&schoolId=${schoolId}` : ''}`)
+    const data = await response.json()
+    
+    if (data.error) {
+      throw new Error(data.error)
+    }
+
+    return {
+      success: true,
+      admins: data.users || []
+    }
+  } catch (error) {
+    console.error("Error fetching admins:", error)
+    return {
+      success: false,
+      admins: [],
+      error: "Failed to fetch admins"
+    }
+  }
+}
+
 
