@@ -20,11 +20,10 @@ export async function authenticate(email: string, password: string) {
   return await mongoAuthenticate(email, password)
 }
 
-export async function createUser(userData: CreateUserParams) {
+export async function createUser(userData: CreateUserParams & { schoolId?: string }) {
   try {
-    // For now, we'll need to get the school_id from context
-    // This should be passed from the component that calls this function
-    const schoolId = "tech-academy" // This should come from the school context
+    // Get school_id from the userData parameter or use a default
+    const schoolId = userData.schoolId || "default-school"
     
     const mongoUserData = {
       school_id: schoolId,
