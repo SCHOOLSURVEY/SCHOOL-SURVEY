@@ -31,3 +31,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete course enrollment' }, { status: 500 })
   }
 }
+
+

@@ -31,3 +31,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete survey' }, { status: 500 })
   }
 }
+
+
